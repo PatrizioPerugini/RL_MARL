@@ -11,11 +11,11 @@ class Qmix_Net(nn.Module):
         self.state_shape = state_shape
         self.n_agents = n_agents
         self.hidden_dim = hidden_dim
-
+        #assuming we work with derk we have state_shape [6,64]-> hence stat_ dim ->6*64
         self.state_dim = int(np.prod(self.state_shape))              
         
-        #architecture
-        self.hyper_w1 = nn.Linear(self.state_dim, self.hidden_dim * self.n_agents)
+        #architecture -hyper networks
+        self.hyper_w1 = nn.Linear(self.state_dim, self.hidden_dim * self.n_agents) 
         self.hyper_w2 = nn.Linear(self.state_dim, self.hidden_dim * 1)
 
         self.hyper_b1 = nn.Linear(self.state_dim, self.hidden_dim)
@@ -29,14 +29,14 @@ class Qmix_Net(nn.Module):
         # states.shape = (batch_size (bs), trajectory_len (t), state_dim)
 
         batch_size = q_values.size(0)       
-        traj_len = q_values.size(1)
+        traj_len = q_values.size(1) #the trajectory len in the output h of the RNN agent
 
         q_values = q_values.view(-1, 1, self.n_agents)      # (bs*t , 1, n_agents)
-        states = states.reshape(-1, self.args.state_dim)            # (bs*t , state_dim)
+        states = states.reshape(-1, self.state_dim)            # (bs*t , state_dim)
 
 
         # Layer 1
-        w1 = torch.abs(self.hyper_w_1(states))
+        w1 = torch.abs(self.hyper_w1(states))
         w1 = w1.view(-1, self.n_agents, self.hidden_dim)        # (bs*t , n_agents, hidden_dim)
 
         b1 = self.hyper_b1(states)

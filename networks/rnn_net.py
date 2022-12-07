@@ -20,6 +20,9 @@ class RNNAgent(nn.Module):
     def forward(self, inputs, hidden_state):
         x = F.relu(self.fc1(inputs))
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)
+        h = self.rnn(h_in)
+        x = torch.cat([x, h])
+        q = self.fc2(x)
         h = self.rnn(x, h_in)
         q = self.fc2(h)
-        return q, h #q function + new hidden state
+        return q, h #q function (take the argmax) + new hidden state (traj?)
