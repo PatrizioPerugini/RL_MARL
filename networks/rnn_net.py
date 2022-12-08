@@ -1,16 +1,28 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+'''
+Poiché qui viene utilizzato RNN, l'ultimo hidden_state è necessario ogni volta.
+Per i dati di un episodio, ogni osservatore ha bisogno dell'ultimo hidden_state per scegliere un'azione.
+Pertanto, non è possibile estrarre direttamente in modo casuale un batch di esperienza e inserirlo nella rete 
+neurale, pertanto qui è necessario un batch di episodi e la transizione della stessa posizione 
+di questo batch di episodi viene trasmessa ogni volta.
+In questo modo, lo stato_nascosto può essere salvato e la prossima esperienza 
+sarà passata la volta successiva
+'''
 
 class RNNAgent(nn.Module):
     def __init__(self, input_shape, rnn_hidden_dim, num_actions):
         super(RNNAgent, self).__init__()
         self.num_actions = num_actions
         self.rnn_hidden_dim=rnn_hidden_dim
-        self.fc1 = nn.Linear(input_shape,  self.rnn_hidden_dim)
+        #the output dim of this layer should match the dimension of the hidden state
+        self.fc1 = nn.Linear(input_shape,  self.rnn_hidden_dim) 
+        #process the new input-trajectory pair
         self.rnn = nn.GRUCell( self.rnn_hidden_dim, self.rnn_hidden_dim)
-        
-        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions)#q function
+        #finally compute the new q 
+        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions*5) #there are 5 actions
         
 
     def init_hidden(self):
@@ -20,9 +32,10 @@ class RNNAgent(nn.Module):
     def forward(self, inputs, hidden_state):
         x = F.relu(self.fc1(inputs))
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)
-        h = self.rnn(h_in)
-        x = torch.cat([x, h])
-        q = self.fc2(x)
-        h = self.rnn(x, h_in)
+        #update gate and reset gate need these informations to be computed, the output coincide 
+        #with the new hidden state which will be fed to the last layer to produes the 
+        #actual q function
+        h = self.rnn(x, h_in)  
         q = self.fc2(h)
-        return q, h #q function (take the argmax) + new hidden state (traj?)
+        #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
+        return q, h #I thin q shoud be some vector like  [action]

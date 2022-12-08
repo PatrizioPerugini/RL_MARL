@@ -18,6 +18,15 @@ for t in range(3):
   cnt = 0
   while True:
     action_n = [env.action_space.sample() for i in range(env.n_agents)]
+    
+    #action n is a [num_agent,num_action] matrix,
+    #each row corresponds to the action taken by that agent and it's a list of dim 5, where:
+    #[MoveX (-1,1) , Rotate (-1,1), ChaseFocus(0,1), CastingSlot(int), Change_focus(int)]
+
+    #each action is then actually a list of 5 actions
+    
+    #print(action_n[0][0])
+    #input()
     observation_n, reward_n, done_n, info = env.step(action_n)
     globs = global_state(observation_n)
    # print("observation number",cnt)
