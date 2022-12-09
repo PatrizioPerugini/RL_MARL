@@ -4,7 +4,7 @@ import numpy as np
 from gym_derk.envs import DerkEnv
 from wrappers import Discrete_actions_space
 from agent import Agent
-#from prova_buffer import ReplayBuffer
+from prova_buffer import ReplayBuffer
 
 def evaluate(env=None, n_episodes=2):
     env = DerkEnv()
@@ -33,15 +33,11 @@ def evaluate(env=None, n_episodes=2):
 
 
 def train():
-    env = DerkEnv()
-    #reply_buffer = ReplayBuffer()
-    agent_1 = Agent(env,team = 1)
-    agent_2 = Agent(env,team = 2)
+    
 
     #TODO
     #agent.train()
-    env.close()
-
+    
 
 def main():
     parser = argparse.ArgumentParser(description='Run training and evaluation')

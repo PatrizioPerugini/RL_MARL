@@ -11,6 +11,7 @@ class ReplayBuffer:
         self.n_agents = n_agents
         self.state_shape = state_shape
         self.obs_shape =obs_shape
+        
         self.size = buffer_size
         self.episode_limit =episode_limit
         # memory management
@@ -83,7 +84,9 @@ if __name__ == '__main__':
     #def __init__(self, n_actions,n_agents,state_shape,obs_shape,buffer_size,episode_limit):
     env = DerkEnv()
     observation_n = env.reset()
+    
     obs_shapee=observation_n.shape
+    
     #input()
     rb = ReplayBuffer(n_actions=15,
                     n_agents=6,
