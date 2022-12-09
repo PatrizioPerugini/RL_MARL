@@ -38,4 +38,5 @@ class RNNAgent(nn.Module):
         h = self.rnn(x, h_in)  
         q = self.fc2(h)
         #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
+        #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
         return q, h #I thin q shoud be some vector like  [action]
