@@ -1,3 +1,9 @@
+<<<<<<< HEAD
 2022/12/09-12:56:21.553 13b5d Reusing MANIFEST /home/adriano/Desktop/Reinforcement_Learning/project_RL/RL_MARL/chromedata/Default/shared_proto_db/MANIFEST-000001
 2022/12/09-12:56:21.553 13b5d Recovering log #3
 2022/12/09-12:56:21.553 13b5d Reusing old log /home/adriano/Desktop/Reinforcement_Learning/project_RL/RL_MARL/chromedata/Default/shared_proto_db/000003.log 
+=======
+2022/12/09-12:58:16.171 ca31 Reusing MANIFEST /home/patrizio/Desktop/RL_MARL/chromedata/Default/shared_proto_db/MANIFEST-000001
+2022/12/09-12:58:16.171 ca31 Recovering log #3
+2022/12/09-12:58:16.171 ca31 Reusing old log /home/patrizio/Desktop/RL_MARL/chromedata/Default/shared_proto_db/000003.log 
+>>>>>>> 26ea0e9a1d7ddec8b8ad7f3ef02a609d8f2586cf

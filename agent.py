@@ -27,6 +27,8 @@ class Agent():
         self.epsilon_decay = 0.95
         self.batch_size = 64      
 
+        
+
 
     def team_split(self,obj):
         if self.team ==1:
