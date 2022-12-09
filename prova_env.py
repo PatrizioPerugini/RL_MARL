@@ -40,7 +40,7 @@ for t in range(3):
     if cnt>2:
       input()
       samples=buffer.sample()
-      print(len(samples[0]))
+      print(len(samples[0][0]))
       input()
     #globs = global_state(observation_n)
    # print("observation number",cnt)
