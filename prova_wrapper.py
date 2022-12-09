@@ -16,6 +16,7 @@ while True:
    
     while True:
         action_n = [discrete_actions.sample() for i in range(env.n_agents)]
+       
         observation_n, reward_n, done_n, info = env.step(action_n)
         if all(done_n):
             print("Episode finished")
