@@ -25,9 +25,9 @@ class RNNAgent(nn.Module):
         self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions*5) #there are 5 actions
         
 
-    def init_hidden(self):
+    def init_hidden(self,batch_size=1):
         # make hidden states on same device as model
-        return self.fc1.weight.new(1, self.rnn_hidden_dim).zero_()
+        return self.fc1.weight.new(batch_size, self.rnn_hidden_dim).zero_()
 
     def forward(self, inputs, hidden_state):
         x = F.relu(self.fc1(inputs))
@@ -40,3 +40,8 @@ class RNNAgent(nn.Module):
         #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
         #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
         return q, h #I thin q shoud be some vector like  [action]
+    
+    def greedy_action_id(self,inputs,hs):
+        qvals, h = self.forward(inputs,hs)
+        action_idx = torch.argmax(qvals).item()
+        return action_idx, h
