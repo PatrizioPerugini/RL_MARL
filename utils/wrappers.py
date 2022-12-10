@@ -49,7 +49,8 @@ class Discrete_actions_space():#DerkEnv.action_space):
     '''
     
     def __init__(self,dx,dr,d_step_cf):
- 
+        
+        self.action_len = 5
         self.d_step_cf = d_step_cf
 
         self.dx = dx

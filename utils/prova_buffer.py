@@ -30,7 +30,7 @@ class ReplayBuffer:
                         'o_next': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape[1]]),
                         's_next': np.empty([self.size, self.episode_limit, self.state_shape[0],self.state_shape[1]]),
                         'terminated': np.empty([self.size, self.episode_limit, 1]),
-                        'episode_len':np.empty[self.size]
+                        'episode_len':np.empty([self.size])
                         }
 
     
@@ -41,8 +41,9 @@ class ReplayBuffer:
     def store_episode(self, episode_batch):
         batch_size = episode_batch['o'].shape[0] 
         #with self.lock:
-
-        idxs = self._get_storage_idx(inc=batch_size)
+        idxs = self.current_idx % self.size
+        #idxs = self._get_storage_idx(inc=batch_size)
+        
         # store the informations
         self.buffers['o'][idxs] = episode_batch['o']
         self.buffers['a'][idxs] = episode_batch['a']
@@ -51,6 +52,8 @@ class ReplayBuffer:
         self.buffers['o_next'][idxs] = episode_batch['o_next']
         self.buffers['s_next'][idxs] = episode_batch['s_next']
         self.buffers['terminated'][idxs] = episode_batch['terminated']
+        
+        self.current_idx += 1
 
     def sample(self, batch_size):
         temp_buffer = {}

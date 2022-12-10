@@ -15,6 +15,7 @@ sarà passata la volta successiva
 class RNNAgent(nn.Module):
     def __init__(self, input_shape, rnn_hidden_dim, num_actions):
         super(RNNAgent, self).__init__()
+        self.input_shape = input_shape
         self.num_actions = num_actions
         self.rnn_hidden_dim=rnn_hidden_dim
         #the output dim of this layer should match the dimension of the hidden state
@@ -22,11 +23,13 @@ class RNNAgent(nn.Module):
         #process the new input-trajectory pair
         self.rnn = nn.GRUCell( self.rnn_hidden_dim, self.rnn_hidden_dim)
         #finally compute the new q 
-        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions*5) #there are 5 actions
+        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions) #there are 5 actions
+        self.hidden_state = self.init_hidden()
         
 
     def init_hidden(self,batch_size=1):
         # make hidden states on same device as model
+        
         return self.fc1.weight.new(batch_size, self.rnn_hidden_dim).zero_()
 
     def forward(self, inputs, hidden_state):
@@ -41,7 +44,10 @@ class RNNAgent(nn.Module):
         #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
         return q, h #I thin q shoud be some vector like  [action]
     
-    def greedy_action_id(self,inputs,hs):
-        qvals, h = self.forward(inputs,hs)
+    def greedy_action_id(self,inputs):
+        qvals, h = self.forward(inputs,self.hidden_state)
+        self.hidden_state = h
         action_idx = torch.argmax(qvals).item()
-        return action_idx, h
+        return action_idx, self.hidden_state
+
+
