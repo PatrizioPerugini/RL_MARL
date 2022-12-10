@@ -8,6 +8,8 @@ class Qmix_Net(nn.Module):
     def __init__(self, state_shape, n_agents, hidden_dim ):
         super(Qmix_Net, self).__init__()
 
+        #state shape -> [batch_size, max_traj_len, n_agents] 
+        # -> the qvals will now be function of the trajectory throug H hidden. 
         self.state_shape = state_shape
         self.n_agents = n_agents
         self.hidden_dim = hidden_dim
@@ -34,6 +36,8 @@ class Qmix_Net(nn.Module):
         q_values = q_values.view(-1, 1, self.n_agents)      # (bs*t , 1, n_agents)
         states = states.reshape(-1, self.state_dim)            # (bs*t , state_dim)
 
+        print("q_values shape is", q_values.shape)
+        print("states shape is", states.shape)
 
         # Layer 1
         w1 = torch.abs(self.hyper_w1(states))
@@ -61,8 +65,19 @@ class Qmix_Net(nn.Module):
         return q_total
 
 
+if __name__ == '__main__':
+    
+    #The shape of q vals is (batchsize, traj_len, n_agents) -> one qval that need to be hstack
+    #the shape of the state that we need to feed to the forward is (batchsize, traj_len,state_shape)
+    #state shape in our case is (n_agens,observation_dim) (-> that is (6,64))
 
-
+    q_vals = torch.rand(32,60,6) #batchsize, traj_len, q_vals
+    #print(360*6)
+    q_state = torch.rand((32,60,6,64))
+    q_mix = Qmix_Net(state_shape=(6,64), n_agents=6, hidden_dim=32)
+    #print(q_mix.forward(q_vals,q_state))
+    out = q_mix.forward(q_vals,q_state)
+    print("done",out.shape)
 
 
 
