@@ -8,7 +8,7 @@ import numpy as np
 
 
 class Discrete_actions_space():#DerkEnv.action_space):
-
+    '''
     def __init__(self,d_step_x,d_step_r,d_step_cf):
         self.d_step_x = d_step_x
         self.d_step_r = d_step_r
@@ -45,7 +45,45 @@ class Discrete_actions_space():#DerkEnv.action_space):
         casting_slot = np.random.choice(range(4))
         change_focus = np.random.choice(range(8))
         return [move,rotate,chase_focus,casting_slot,change_focus]
+
+    '''
     
+    def __init__(self,dx,dr,d_step_cf):
  
+        self.d_step_cf = d_step_cf
+
+        self.dx = dx
+        self.dr = dr
+        self.dcf = round(1/d_step_cf,2)
+
+        self.actions = self.actions_computation()
+        self.count = len(self.actions)
+        self.sizes = (3, 3, self.d_step_cf + 1, 4,8)
+
+    def actions_computation(self):
+        acts = []
+        for cnf in range(8):
+            for cs in range(4):
+                for csf in range(self.d_step_cf + 1):
+                    for r in [-self.dr,0,self.dr]:
+                        for m in [-self.dx,0,self.dx]:
+                            move = m
+                            rotate = r
+                            chase_focus = float(self.dr*csf)
+                            casting_slot = cs
+                            change_focus = cnf
+                            acts.append([move,rotate,chase_focus,casting_slot,change_focus])
+                            
+        return acts
+    
+        
+    def sample(self):
+        move = np.random.choice([-self.dx,0,self.dx])
+        rotate = np.random.choice([-self.dr,0,self.dr])
+        chase_focus = np.random.choice([0.0 + self.dcf*i for i in range(self.d_step_cf + 1)])
+        casting_slot = np.random.choice(range(4))
+        change_focus = np.random.choice(range(8))
+        return [move,rotate,chase_focus,casting_slot,change_focus]
+
 
 
