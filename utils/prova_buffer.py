@@ -29,7 +29,8 @@ class ReplayBuffer:
                         'r': np.empty([self.size, self.episode_limit, self.n_agents]),
                         'o_next': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape[1]]),
                         's_next': np.empty([self.size, self.episode_limit, self.state_shape[0],self.state_shape[1]]),
-                        'terminated': np.empty([self.size, self.episode_limit, 1])
+                        'terminated': np.empty([self.size, self.episode_limit, 1]),
+                        'episode_len':np.empty[self.size]
                         }
 
     
