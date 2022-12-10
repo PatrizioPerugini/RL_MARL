@@ -2,28 +2,29 @@ import argparse
 import random
 import numpy as np
 from gym_derk.envs import DerkEnv
-from wrappers import Discrete_actions_space
-from agent import Agent
-from prova_buffer import ReplayBuffer
+from agent import Agents
 
 def evaluate(env=None, n_episodes=1):
     env = DerkEnv()
-    agent_1 = Agent(env,team = 1)
-    agent_2 = Agent(env,team = 2)
+    agent = Agents()
     
     for episode in range(n_episodes):
         observation_n = env.reset()
         total_rewards = [0,0]
         done_n = [False]
+        last_action_n = np.zeros((6,5))
 
         while True:     
-            action_1 = agent_1.act(observation_n)
-            action_2 = agent_2.act(observation_n)
+            input_rnn = np.hstack((observation_n,last_action_n))
+
+            action_1 = agent.agent_1.act(input_rnn)
+            action_2 = agent.agent_2.act(input_rnn)
             
             action_n = action_1 + action_2
             
             observation_n, reward_n, done_n, info = env.step(action_n)
 
+            last_action_n = action_n
             total_rewards[0] += sum(reward_n[0:2])
             total_rewards[1] += sum(reward_n[3:5])
             if done_n[0]: break
@@ -34,7 +35,8 @@ def evaluate(env=None, n_episodes=1):
 
 
 def train():
-    
+    agent = Agents()
+    agent.roll_in_episode()
 
     #TODO
     #agent.train()
