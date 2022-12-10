@@ -47,7 +47,10 @@ class RNNAgent(nn.Module):
     def greedy_action_id(self,inputs):
         qvals, h = self.forward(inputs,self.hidden_state)
         self.hidden_state = h
+        
         action_idx = torch.argmax(qvals).item()
+        
+
         return action_idx, self.hidden_state
 
 

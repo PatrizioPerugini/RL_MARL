@@ -26,23 +26,27 @@ class Agent_Qmix():
 
         self.RNN_input_shape = self.state_shape + self.discrete_actions.action_len
         self.RNN_hidden_dim = 32
+        
         self.rnn_1 = RNNAgent(self.RNN_input_shape, self.RNN_hidden_dim, self.n_actions)
         self.rnn_2 = RNNAgent(self.RNN_input_shape, self.RNN_hidden_dim, self.n_actions)
         self.rnn_3 = RNNAgent(self.RNN_input_shape, self.RNN_hidden_dim, self.n_actions)
+        
+        self.rnn_agents=[self.rnn_1,self.rnn_2,self.rnn_3]
 
         self.Qmix_hidden_dim = 32
         self.qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim)
         
+        self.hidden_states = [self.rnn_1.init_hidden(),self.rnn_2.init_hidden(),self.rnn_3.init_hidden()]
         # Training stuff
         #self.tot_episodes = 500
         #self.max_steps_per_episode = 1000
-        #self.gamma=0.99
-        #self.learning_rate=0.00025
+        self.gamma=0.99
+        self.learning_rate=0.00025
         self.epsilon=0.3
         #self.min_epsilon = 0.2
         #self.init_epsilon = self.epsilon
         #self.epsilon_decay = 0.95
-        #self.batch_size = 64      
+        self.batch_size = 2      
 
     def greedy_action(self,input):
         #input = np.array(input,dtype=)        
@@ -60,12 +64,37 @@ class Agent_Qmix():
     
     def act(self, input, exploit):  
         input = self.team_split(input)
-        if exploit:
-            actions = self.greedy_action(input)
-        else:
+        actions = self.greedy_action(input)
+        if not exploit:
             actions = [ self.discrete_actions.sample() for _ in self.team_members_id]
         return actions
     
+    def reset_hidden_states(self):
+        self.hidden_states[0] = self.rnn_1.init_hidden()
+        self.hidden_states[1] = self.rnn_2.init_hidden()
+        self.hidden_states[2] = self.rnn_3.init_hidden()
+        
+
+    def update(self,buffer):
+        #self.load()
+        #batch = buffer.sample(self.batch_size)
+        batch = buffer.sample(self.batch_size)
+        for i in range(self.batch_size-1):
+            self.reset_hidden_states()
+            for t in range(int(batch['episode_len'][i])):
+                obs = self.team_split(batch['o'][i])
+                obs_next = self.team_split(batch['o_next'][i][t])
+                last_action = self.team_split(batch['a'][i][t])
+                for j in range(len(self.rnn_agents)):      # j for teammate
+                    input_rnn = np.hstack((obs_next[j].astype('float32'),last_action[j].astype('float32')))
+                    input_rnn=torch.from_numpy(input_rnn).unsqueeze(0)
+                    #fare lista qvals
+                    qvals, self.hidden_states[j] = self.rnn_agents[j].forward(input_rnn,self.hidden_states[j])
+
+               
+                #cat(q1,q2...qn)
+                #compute q -> TD_LOSS
+
 
 
 
@@ -73,7 +102,7 @@ class Agents():
 
     def __init__(self):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.env = DerkEnv()
+        self.env = DerkEnv(turbo_mode=True)
         self.agent_1 = Agent_Qmix(self.env,team = 1)
         self.agent_2 = Agent_Qmix(self.env,team = 2)
         self.discrete_actions = Discrete_actions_space(3,3,3)
@@ -89,7 +118,7 @@ class Agents():
 
 
         #buffer 
-        self.episode_limit = 200
+        self.episode_limit = 30
         self.buffer_size = 50
         self.buffer = ReplayBuffer(self.action_shape,self.n_agents,(6, 64),
                                     (6, 64),self.buffer_size,self.episode_limit)
@@ -138,13 +167,20 @@ class Agents():
 
 
     #populate the buffer with a full episode
-    def roll_in_episode(self): # -> with this operation we could do a pre-filling procedure
+    def roll_in_episode(self,training_ag): # -> with this operation we could do a pre-filling procedure
         #roll in phase
-        id = 0
+        #training agent is either 0 or 1
+        id = 1
         done = False
         self.last_action = np.zeros((6,5))
+        
+
         while (id<self.episode_limit and not done):
-            e_exploit = [self.e_choice(),self.e_choice()]
+            if training_ag:
+                e_exploit = [True,self.e_choice()]
+            else:
+                e_exploit = [self.e_choice(),True]
+
             (o, a, s, r, o_next, s_next, d)= self.make_step( self.observation_n,self.last_action,e_exploit)
             done = d[0]
             self.observation_n = o_next
@@ -162,7 +198,23 @@ class Agents():
             id += 1
         #store the episode
         self.buffer.store_episode(self.episode_batch)
+        
+
         print('Batch saved in the buffer.')
+    
+    
+    def train(self,max_steps=2):
+        #while smth
+        for _ in range(max_steps):
+            self.roll_in_episode(0)
+            print("finished_roll")
+            self.observation_n=self.env.reset()
+
+        
+        self.agent_1.update(self.buffer)
+        #leva buffer
+        #rollin con secondo
+        #repeat
 
 
     

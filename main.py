@@ -36,10 +36,10 @@ def evaluate(env=None, n_episodes=1):
 
 def train():
     agent = Agents()
-    agent.roll_in_episode()
+    #agent.roll_in_episode()
 
     #TODO
-    #agent.train()
+    agent.train()
     pass
     
 
