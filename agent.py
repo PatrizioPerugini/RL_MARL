@@ -78,20 +78,29 @@ class Agent_Qmix():
     def update(self,buffer):
         #self.load()
         #batch = buffer.sample(self.batch_size)
+        qvals = [0,0,0]
         batch = buffer.sample(self.batch_size)
-        for i in range(self.batch_size-1):
+        for i in range(self.batch_size):
             self.reset_hidden_states()
-            for t in range(int(batch['episode_len'][i])):
-                obs = self.team_split(batch['o'][i])
-                obs_next = self.team_split(batch['o_next'][i][t])
-                last_action = self.team_split(batch['a'][i][t])
+            last_action = np.zeros((3,5))
+            for t in range(int(batch['episode_len'][i])): #trajectory len
+                obs = self.team_split(batch['o'][i][t])
+                obs_next = self.team_split(batch['o_next'][i][t]) #(3,64)
+                rewards = self.team_split(batch['r'][i][t]) #(3,)
+                actions = self.team_split(batch['a'][i][t]) #(3,5)
                 for j in range(len(self.rnn_agents)):      # j for teammate
-                    input_rnn = np.hstack((obs_next[j].astype('float32'),last_action[j].astype('float32')))
+                    input_rnn = np.hstack((obs[j].astype('float32'),last_action[j].astype('float32')))
                     input_rnn=torch.from_numpy(input_rnn).unsqueeze(0)
                     #fare lista qvals
-                    qvals, self.hidden_states[j] = self.rnn_agents[j].forward(input_rnn,self.hidden_states[j])
-
-               
+                    qvals[j], self.hidden_states[j] = self.rnn_agents[j].forward(input_rnn,self.hidden_states[j])
+                    #print(qvals)
+                last_action = actions
+                q_f =torch.cat((qvals[0],qvals[1],qvals[2]),dim=0)
+               # q_f = torch.gather(q_f,1,torch.LongTensor(actions))
+                print("the shape of qvals is",q_f.shape)
+                
+                #q_vals = torch.rand(32,60,3) #batchsize, traj_len, q_vals
+                
                 #cat(q1,q2...qn)
                 #compute q -> TD_LOSS
 

@@ -54,3 +54,10 @@ class RNNAgent(nn.Module):
         return action_idx, self.hidden_state
 
 
+if __name__ == '__main__':
+    random_val = torch.rand((1,69)) 
+    print(random_val.dtype)
+    rna = RNNAgent(input_shape=69,rnn_hidden_dim=32,num_actions=1152)
+    h_in = rna.init_hidden() 
+    q,_ = rna.forward(random_val,h_in)
+    print(q.shape)
