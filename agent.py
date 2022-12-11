@@ -22,7 +22,7 @@ class Agent_Qmix():
         self.team_members_id = self.team_split([i for i in range(6)])
         self.n_actions = self.discrete_actions.count
         self.state_shape = self.env.observation_space.shape[0]
-        self.actions = self.discrete_actions.actions
+        self.action_dict = self.discrete_actions.actions
 
         self.RNN_input_shape = self.state_shape + self.discrete_actions.action_len
         self.RNN_hidden_dim = 32
@@ -49,11 +49,11 @@ class Agent_Qmix():
         self.batch_size = 2      
 
     def greedy_action(self,input):
-        #input = np.array(input,dtype=)        
-        idx_1,_ = self.rnn_1.greedy_action_id(torch.from_numpy(input[0]).unsqueeze(0))
-        idx_2,_ = self.rnn_2.greedy_action_id(torch.from_numpy(input[1]).unsqueeze(0))
-        idx_3,_ = self.rnn_3.greedy_action_id(torch.from_numpy(input[2]).unsqueeze(0))
-        return [self.actions[idx_1], self.actions[idx_2], self.actions[idx_3]]
+        indices = []
+        for i in range(len(self.rnn_agents)):
+            idx,_ = self.rnn_agents[i].greedy_action_id(torch.from_numpy(input[i]).unsqueeze(0))
+            indices.append(idx)      
+        return indices
 
 
     def team_split(self,obj):
@@ -66,7 +66,7 @@ class Agent_Qmix():
         input = self.team_split(input)
         actions = self.greedy_action(input)
         if not exploit:
-            actions = [ self.discrete_actions.sample() for _ in self.team_members_id]
+            actions = self.discrete_actions.sample()[0]
         return actions
     
     def reset_hidden_states(self):
@@ -82,21 +82,23 @@ class Agent_Qmix():
         batch = buffer.sample(self.batch_size)
         for i in range(self.batch_size):
             self.reset_hidden_states()
-            last_action = np.zeros((3,5))
+            last_action_id = np.ones((3))*4     # 4 is the index of (0,0,0,0,0)
             for t in range(int(batch['episode_len'][i])): #trajectory len
                 obs = self.team_split(batch['o'][i][t])
                 obs_next = self.team_split(batch['o_next'][i][t]) #(3,64)
                 rewards = self.team_split(batch['r'][i][t]) #(3,)
-                actions = self.team_split(batch['a'][i][t]) #(3,5)
+                actions_id = self.team_split(batch['a'][i][t]) #(3,1)
                 for j in range(len(self.rnn_agents)):      # j for teammate
-                    input_rnn = np.hstack((obs[j].astype('float32'),last_action[j].astype('float32')))
+                    #print(last_action_id[j])
+                    l_a = np.array(self.action_dict[int(last_action_id[j])])
+                    input_rnn = np.hstack((obs[j].astype('float32'),l_a.astype('float32')))
                     input_rnn=torch.from_numpy(input_rnn).unsqueeze(0)
                     #fare lista qvals
                     qvals[j], self.hidden_states[j] = self.rnn_agents[j].forward(input_rnn,self.hidden_states[j])
                     #print(qvals)
-                last_action = actions
-                q_f =torch.cat((qvals[0],qvals[1],qvals[2]),dim=0)
-               # q_f = torch.gather(q_f,1,torch.LongTensor(actions))
+                last_action_id = actions_id
+                q_f = torch.cat((qvals[0],qvals[1],qvals[2]),dim=0)
+                q_f = torch.gather(q_f,1,torch.LongTensor(actions_id.reshape(-1,1)))
                 print("the shape of qvals is",q_f.shape)
                 
                 #q_vals = torch.rand(32,60,3) #batchsize, traj_len, q_vals
@@ -115,6 +117,7 @@ class Agents():
         self.agent_1 = Agent_Qmix(self.env,team = 1)
         self.agent_2 = Agent_Qmix(self.env,team = 2)
         self.discrete_actions = Discrete_actions_space(3,3,3)
+        self.action_dict = self.discrete_actions.actions
         self.action_shape = 5
         self.n_agents = self.env.n_agents
         self.obs_shape = self.env.observation_space.shape[0]
@@ -127,13 +130,12 @@ class Agents():
 
 
         #buffer 
-        self.episode_limit = 30
+        self.episode_limit = 20
         self.buffer_size = 50
-        self.buffer = ReplayBuffer(self.action_shape,self.n_agents,(6, 64),
-                                    (6, 64),self.buffer_size,self.episode_limit)
+        self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
         self.episode_batch = {'o': np.zeros([self.episode_limit, self.n_agents, self.obs_shape]),
-                        'a': np.zeros([self.episode_limit, self.n_agents, self.action_shape]),
+                        'a': np.zeros([self.episode_limit, self.n_agents]),
                         's': np.zeros([self.episode_limit, self.n_agents,self.state_shape]),  
                         'r': np.zeros([self.episode_limit, self.n_agents]),
                         'o_next': np.zeros([self.episode_limit, self.n_agents, self.obs_shape]),
@@ -154,11 +156,13 @@ class Agents():
         
         input_rnn = np.hstack((observation_n.astype('float32'),last_action_n.astype('float32')))
 
-        action_1 = self.agent_1.act(input_rnn,exploit[0])
-        action_2 = self.agent_2.act(input_rnn,exploit[1])
-        action_n = action_1 + action_2
+        action_1_id = self.agent_1.act(input_rnn,exploit[0])
+        action_2_id = self.agent_2.act(input_rnn,exploit[1])
+        action_n = action_1_id + action_2_id
         
-        observation_n, reward_n, done_n, info = self.env.step(action_n)
+        action_to_do = [ self.action_dict[idx] for idx in action_n]
+
+        observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
         #self.total_rewards[0] += sum(reward_n[0:2])
@@ -193,9 +197,8 @@ class Agents():
             (o, a, s, r, o_next, s_next, d)= self.make_step( self.observation_n,self.last_action,e_exploit)
             done = d[0]
             self.observation_n = o_next
-
             self.episode_batch['o'][id] = o 
-            self.episode_batch['a'][id] = a 
+            self.episode_batch['a'][id] = a
             self.episode_batch['s'][id] = s 
             self.episode_batch['r'][id] = r 
             self.episode_batch['o_next'][id] = o_next 
@@ -229,7 +232,6 @@ class Agents():
     
 if __name__ == '__main__':
     agent = Agents()
-    agent.roll_in_episode()
+    agent.roll_in_episode(1)
     sample=agent.buffer.sample(2)
-    print(sample)
     print('daje brah')
