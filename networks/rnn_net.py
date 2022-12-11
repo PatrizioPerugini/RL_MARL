@@ -34,6 +34,7 @@ class RNNAgent(nn.Module):
 
     def forward(self, inputs, hidden_state):
         x = F.relu(self.fc1(inputs))
+        
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)
         #update gate and reset gate need these informations to be computed, the output coincide 
         #with the new hidden state which will be fed to the last layer to produes the 
@@ -57,4 +58,4 @@ if __name__ == '__main__':
     rna = RNNAgent(input_shape=69,rnn_hidden_dim=32,num_actions=1152)
     h_in = rna.init_hidden() 
     q,_ = rna.forward(random_val,h_in)
-    print(q.shape)
+    print(q.shape) #(1,1152)

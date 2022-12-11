@@ -14,7 +14,7 @@ class Qmix_Net(nn.Module):
         self.n_agents = n_agents
         self.hidden_dim = hidden_dim
         #assuming we work with derk we have state_shape [6,64]-> hence stat_ dim ->6*64
-        self.state_dim = int(np.prod(self.state_shape))              
+        self.state_dim = int(np.prod(self.state_shape))*2              
         
         #architecture -hyper networks
         self.hyper_w1 = nn.Linear(self.state_dim, self.hidden_dim * self.n_agents) 
@@ -35,9 +35,8 @@ class Qmix_Net(nn.Module):
 
         q_values = q_values.view(-1, 1, self.n_agents)      # (bs*t , 1, n_agents)
         states = states.reshape(-1, self.state_dim)            # (bs*t , state_dim)
-
-        print("q_values shape is", q_values.shape)
-        print("states shape is", states.shape)
+        #print("the shape of q_values ", q_values.shape)
+        #print("the shape of states ", states.shape)
 
         # Layer 1
         w1 = torch.abs(self.hyper_w1(states))
