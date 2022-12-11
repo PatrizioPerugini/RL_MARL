@@ -5,9 +5,8 @@ from gym_derk.envs import DerkEnv
 
 
 class ReplayBuffer:
-    def __init__(self, n_actions,n_agents,state_shape,obs_shape,buffer_size,episode_limit):
+    def __init__(self,n_agents,state_shape,obs_shape,buffer_size,episode_limit):
         
-        self.n_actions = n_actions
         self.n_agents = n_agents
         self.state_shape = state_shape
         self.obs_shape =obs_shape
@@ -24,7 +23,7 @@ class ReplayBuffer:
         # 3——il numero dei dati dell'agente 
         # 4——dimensione specifica dell'oss
         self.buffers = {'o': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape[1]]),
-                        'a': np.empty([self.size, self.episode_limit, self.n_agents, self.n_actions]),
+                        'a': np.empty([self.size, self.episode_limit, self.n_agents]),
                         's': np.empty([self.size, self.episode_limit, self.state_shape[0],self.state_shape[1]]),  
                         'r': np.empty([self.size, self.episode_limit, self.n_agents]),
                         'o_next': np.empty([self.size, self.episode_limit, self.n_agents, self.obs_shape[1]]),

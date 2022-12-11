@@ -1,5 +1,6 @@
 from gym_derk.envs import DerkEnv
 import numpy as np
+import random
 
 
 #action n is a [num_agent,num_action] matrix,
@@ -56,13 +57,18 @@ class Discrete_actions_space():#DerkEnv.action_space):
         self.dx = dx
         self.dr = dr
         self.dcf = round(1/d_step_cf,2)
-
-        self.actions = self.actions_computation()
-        self.count = len(self.actions)
         self.sizes = (3, 3, self.d_step_cf + 1, 4,8)
+        self.count = np.prod(self.sizes)
+        self.actions = {}
+        self.actions_computation()
+        self.reset_act_id = 4
+
+    
+        
+        
 
     def actions_computation(self):
-        acts = []
+        idx = 0
         for cnf in range(8):
             for cs in range(4):
                 for csf in range(self.d_step_cf + 1):
@@ -73,11 +79,20 @@ class Discrete_actions_space():#DerkEnv.action_space):
                             chase_focus = float(self.dr*csf)
                             casting_slot = cs
                             change_focus = cnf
-                            acts.append([move,rotate,chase_focus,casting_slot,change_focus])
-                            
-        return acts
+                            act=(move,rotate,chase_focus,casting_slot,change_focus)
+                            self.actions[idx] = act
+                            idx +=1
     
+    
+    def sample(self, sample=3):
+        keys = random.sample(range(0, self.count-1), 3)
+        actions = [self.actions[k] for k in keys]
         
+        return [keys,actions]
+         
+
+
+    '''
     def sample(self):
         move = np.random.choice([-self.dx,0,self.dx])
         rotate = np.random.choice([-self.dr,0,self.dr])
@@ -85,6 +100,14 @@ class Discrete_actions_space():#DerkEnv.action_space):
         casting_slot = np.random.choice(range(4))
         change_focus = np.random.choice(range(8))
         return [move,rotate,chase_focus,casting_slot,change_focus]
+    '''
+
+if __name__ == '__main__':
+    actionsss = Discrete_actions_space(0.1,0.1,4)
+    
+    actionsss.sample()
+
+
 
 
 
