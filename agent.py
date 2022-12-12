@@ -1,5 +1,4 @@
 import torch
-from utils.wrappers import Discrete_actions_space
 from gym_derk.envs import DerkEnv
 from utils.prova_buffer import ReplayBuffer
 from networks.rnn_net import RNNAgent
@@ -13,20 +12,20 @@ import torch.nn as nn
 
 class Agent_Qmix():
 
-    def __init__(self,env,team):#,replay_buffer):
+    def __init__(self,custom_env,team):#,replay_buffer):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.device = torch.device("cpu")
         
-        self.env = env
-        self.discrete_actions = Discrete_actions_space(3,3,3)
+        self.env = custom_env.env
+        self.action_space = custom_env.action_space
         self.team = team
         self.n_agents = int(self.env.n_agents / 2)    #teams have the same number of components
         self.team_members_id = self.team_split([i for i in range(6)])
-        self.n_actions = self.discrete_actions.count
+        self.n_actions = self.action_space.count
         self.state_shape = self.env.observation_space.shape[0]
-        self.action_dict = self.discrete_actions.actions
+        self.action_dict = self.action_space.actions
 
-        self.RNN_input_shape = self.state_shape + self.discrete_actions.action_len
+        self.RNN_input_shape = self.state_shape + self.action_space.action_len
         self.RNN_hidden_dim = 32
         
         self.rnn_1 = RNNAgent(self.RNN_input_shape, self.RNN_hidden_dim, self.n_actions).to(self.device)
@@ -76,7 +75,7 @@ class Agent_Qmix():
         input = self.team_split(input)
         actions = self.greedy_action(input)
         if not exploit:
-            actions = self.discrete_actions.sample()[0]
+            actions = self.action_space.sample()[0]
         return actions
     
     def reset_hidden_states(self):
@@ -101,7 +100,7 @@ class Agent_Qmix():
         batch = buffer.sample(self.batch_size)
         for i in range(self.batch_size):
             self.reset_hidden_states()
-            last_action_id = np.ones((3))*4     # 4 is the index of (0,0,0,0,0)
+            last_action_id = np.zeros((3))     # 4 is the index of (0,0,0,0,0)
             #stack_t=torch.zeros((1,3))
             traj_len=int(batch['episode_len'][i])+1
             for t in range(traj_len): #trajectory len
@@ -191,13 +190,13 @@ class Agent_Qmix():
 
 class Agents():
 
-    def __init__(self):
+    def __init__(self,custom_env):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.env = DerkEnv(turbo_mode=True)
-        self.agent_1 = Agent_Qmix(self.env,team = 1)
-        self.agent_2 = Agent_Qmix(self.env,team = 2)
-        self.discrete_actions = Discrete_actions_space(3,3,3)
-        self.action_dict = self.discrete_actions.actions
+        self.env = custom_env.env
+        self.agent_1 = Agent_Qmix(custom_env,team = 1)
+        self.agent_2 = Agent_Qmix(custom_env,team = 2)
+        self.action_space = custom_env.action_space
+        self.action_dict = self.action_space.actions
         self.action_shape = 5
         self.n_agents = self.env.n_agents
         self.obs_shape = self.env.observation_space.shape[0]
@@ -304,8 +303,6 @@ class Agents():
             for r_i in range(max_steps):
                 self.roll_in_episode(0)
                 #self.observation_n=self.env.reset()
-
-
             self.agent_1.update(self.buffer,self.episode_limit)
         #leva buffer
         #rollin con secondo
