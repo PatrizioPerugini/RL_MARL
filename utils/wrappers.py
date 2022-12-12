@@ -10,45 +10,6 @@ import random
 
 class Discrete_actions_space():#DerkEnv.action_space):
     '''
-    def __init__(self,d_step_x,d_step_r,d_step_cf):
-        self.d_step_x = d_step_x
-        self.d_step_r = d_step_r
-        self.d_step_cf = d_step_cf
-
-        self.dx = round(1/d_step_x,2)
-        self.dr = round(1/d_step_r,2)
-        self.dcf = round(1/d_step_cf,2)
-
-        self.actions = self.actions_computation()
-        self.count = len(self.actions)
-        self.sizes = (2*self.d_step_x+1, 2*self.d_step_r + 1, 2*self.d_step_cf + 1, 4,8)
-    
-    def actions_computation(self):
-        acts = []
-        for a in range(2*self.d_step_x + 1):
-            for b in range(2*self.d_step_r + 1):
-                for c  in range(self.d_step_r + 1):
-                    for e in range(4):
-                        for f in range(8):
-                            move = -1.0 + self.dx*a 
-                            rotate = -1.0 + self.dr*b
-                            chase_focus = float(self.dr*c)
-                            casting_slot = e
-                            change_focus = f
-                            acts.append([move,rotate,chase_focus,casting_slot,change_focus])
-        return acts
-
-    
-    def sample(self):
-        move = np.random.choice([-1.0 + self.dx*i for i in range(2*self.d_step_x + 1)])
-        rotate = np.random.choice([-1.0 + self.dr*i for i in range(2*self.d_step_r + 1)])
-        chase_focus = np.random.choice([0.0 + self.dr*i for i in range(self.d_step_r + 1)])
-        casting_slot = np.random.choice(range(4))
-        change_focus = np.random.choice(range(8))
-        return [move,rotate,chase_focus,casting_slot,change_focus]
-
-    '''
-    
     def __init__(self,dx,dr,d_step_cf):
         
         self.action_len = 5
@@ -62,10 +23,6 @@ class Discrete_actions_space():#DerkEnv.action_space):
         self.actions = {}
         self.actions_computation()
         self.reset_act_id = 4
-
-    
-        
-        
 
     def actions_computation(self):
         idx = 0
@@ -89,18 +46,48 @@ class Discrete_actions_space():#DerkEnv.action_space):
         actions = [self.actions[k] for k in keys]
         
         return [keys,actions]
-         
-
-
     '''
+
+    def __init__(self,dx,dr):
+        
+        self.action_len = 5
+
+        self.dx = dx
+        self.dr = dr
+        self.count = 16
+        self.actions = {}
+        self.actions_computation()
+        self.n_agents = 3
+        
+    def actions_computation(self):
+        self.actions[0] = [0,0,0,0,0]               #do nothing
+        self.actions[1] = [self.dx,0,0,0,0]         #move +
+        self.actions[2] = [-self.dx,0,0,0,0]        #move -
+        self.actions[3] = [0,self.dr,0,0,0]         #rotate +
+        self.actions[4] = [0,-self.dr,0,0,0]        #rotate -
+        self.actions[5] = [0,0,1,0,0]               #chase focus
+        self.actions[6] = [0,0,0,1,0]               #cast ability 1
+        self.actions[7] = [0,0,0,2,0]               #cast ability 2
+        self.actions[8] = [0,0,0,3,0]               #cast ability 3
+        self.actions[9] = [0,0,0,0,1]               # change focus to i = 1
+        self.actions[10] = [0,0,0,0,2]              # change focus to i = 2
+        self.actions[11] = [0,0,0,0,3]              # change focus to i = 3
+        self.actions[12] = [0,0,0,0,4]              # change focus to i = 4
+        self.actions[13] = [0,0,0,0,5]              # change focus to i = 5
+        self.actions[14] = [0,0,0,0,6]              # change focus to i = 6
+        self.actions[15] = [0,0,0,0,7]              # change focus to i = 7
+        # with i:   1=focus home statue. 2-3=focus teammates, 4=focus enemy statue, 5-7=focus enemy
+    
     def sample(self):
-        move = np.random.choice([-self.dx,0,self.dx])
-        rotate = np.random.choice([-self.dr,0,self.dr])
-        chase_focus = np.random.choice([0.0 + self.dcf*i for i in range(self.d_step_cf + 1)])
-        casting_slot = np.random.choice(range(4))
-        change_focus = np.random.choice(range(8))
-        return [move,rotate,chase_focus,casting_slot,change_focus]
-    '''
+        keys = random.sample(range(0, self.count-1), self.n_agents)
+        actions = [self.actions[k] for k in keys]
+        
+        return [keys,actions]
+
+
+
+
+    
 
 if __name__ == '__main__':
     actionsss = Discrete_actions_space(0.1,0.1,4)
