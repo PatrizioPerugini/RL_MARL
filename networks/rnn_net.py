@@ -16,6 +16,7 @@ class RNNAgent(nn.Module):
     def __init__(self, input_shape, rnn_hidden_dim, num_actions):
         super(RNNAgent, self).__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.device="cpu"
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.rnn_hidden_dim=rnn_hidden_dim
@@ -45,6 +46,7 @@ class RNNAgent(nn.Module):
         q = self.fc2(h)
         #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
         #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
+        print(q.shape)
         return q.to(self.device), h.to(self.device) #I thin q shoud be some vector like  [action]
     
     def greedy_action_id(self,inputs):
