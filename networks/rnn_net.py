@@ -15,6 +15,7 @@ sarà passata la volta successiva
 class RNNAgent(nn.Module):
     def __init__(self, input_shape, rnn_hidden_dim, num_actions):
         super(RNNAgent, self).__init__()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.input_shape = input_shape
         self.num_actions = num_actions
         self.rnn_hidden_dim=rnn_hidden_dim
@@ -30,26 +31,33 @@ class RNNAgent(nn.Module):
     def init_hidden(self,batch_size=1):
         # make hidden states on same device as model
         
-        return self.fc1.weight.new(batch_size, self.rnn_hidden_dim).zero_()
+        return self.fc1.weight.new(batch_size, self.rnn_hidden_dim).zero_().to(self.device)
 
     def forward(self, inputs, hidden_state):
         x = F.relu(self.fc1(inputs))
-        
+        hidden_state.to(self.device)
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)
         #update gate and reset gate need these informations to be computed, the output coincide 
         #with the new hidden state which will be fed to the last layer to produes the 
         #actual q function
+        
         h = self.rnn(x, h_in)  
         q = self.fc2(h)
         #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
         #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
-        return q, h #I thin q shoud be some vector like  [action]
+        return q.to(self.device), h.to(self.device) #I thin q shoud be some vector like  [action]
     
     def greedy_action_id(self,inputs):
+        self.hidden_state.to(self.device)
         qvals, h = self.forward(inputs,self.hidden_state)
         self.hidden_state = h
         action_idx = torch.argmax(qvals).item()
         return action_idx, self.hidden_state
+    
+    def to(self, device):
+        ret = super().to(device)
+        ret.device = device
+        return ret
 
 
 if __name__ == '__main__':

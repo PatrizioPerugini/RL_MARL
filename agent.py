@@ -14,7 +14,8 @@ class Agent_Qmix():
 
     def __init__(self,custom_env,team):#,replay_buffer):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.device = torch.device("cpu")
+        
+        #self.device = torch.device("cpu")
         
         self.env = custom_env.env
         self.action_space = custom_env.action_space
@@ -51,8 +52,12 @@ class Agent_Qmix():
         #self.init_epsilon = self.epsilon
         #self.epsilon_decay = 0.95
         self.batch_size = 2
+        
+        #optimize multiple net
+        params = list(self.qmix.parameters()) + list(self.rnn_1.parameters()) \
+                        +list(self.rnn_1.parameters())+ list(self.rnn_1.parameters())
 
-        self.optimizer = torch.optim.Adam(self.qmix.parameters(),
+        self.optimizer = torch.optim.Adam(params,
                                           lr=self.learning_rate)
         self.loss_function = nn.MSELoss()
 
@@ -85,6 +90,7 @@ class Agent_Qmix():
         
 
     def update(self,buffer,episode_limit=150):
+        print("training team number",self.team)
         #self.load()
         #batch = buffer.sample(self.batch_size)
         qvals = [0,0,0]
@@ -125,9 +131,8 @@ class Agent_Qmix():
                     
                     #q_state = torch.rand((32,60,6,64)) #batc_size, traj_len,obs
                 
-                q_f = torch.cat((qvals[0],qvals[1],qvals[2]),dim=0)
-                q_f = torch.gather(q_f,1,torch.LongTensor(actions_id.reshape(-1,1))).squeeze(-1)
-        
+                q_f = torch.cat((qvals[0],qvals[1],qvals[2]),dim=0).to(self.device)
+                q_f = torch.gather(q_f,1,torch.LongTensor(actions_id.reshape(-1,1)).to(self.device)).squeeze(-1)
 
                 stack_batch_qvals[i,t,:]=q_f
 
@@ -142,7 +147,7 @@ class Agent_Qmix():
             for j in range(len(self.rnn_agents)):
                 a = np.array(self.action_dict[int(actions_id[j])])
                 input_rnn = np.hstack((obs_next[j].astype('float32'),a.astype('float32')))
-                input_rnn=torch.from_numpy(input_rnn).unsqueeze(0)
+                input_rnn=torch.from_numpy(input_rnn).unsqueeze(0).to(self.device)
                 next_qvals[j], self.hidden_states[j] = self.rnn_agents[j].forward(input_rnn,self.hidden_states[j])
             
             next_q_f = torch.cat((next_qvals[0],next_qvals[1],next_qvals[2]),dim=0)
@@ -174,10 +179,10 @@ class Agent_Qmix():
    
     
     def save(self):
-        torch.save(self.qmix.state_dict(),  "model_qmix.pt")
-        torch.save(self.rnn_1.state_dict(), "model_rnn1.pt")
-        torch.save(self.rnn_2.state_dict(), "model_rnn2.pt")
-        torch.save(self.rnn_3.state_dict(), "model_rnn3.pt")
+        torch.save(self.qmix.state_dict(),  "model_qmix" +"_"+ str(self.team)+".pt")
+        torch.save(self.rnn_1.state_dict(), "model_rnn1" +"_"+ str(self.team)+".pt")
+        torch.save(self.rnn_2.state_dict(), "model_rnn2" +"_"+ str(self.team)+".pt")
+        torch.save(self.rnn_3.state_dict(), "model_rnn3" +"_"+ str(self.team)+".pt")
     
     def load(self):
         self.qmix.load_state_dict(torch.load("model_qmix.pt", map_location=self.device))
@@ -298,16 +303,18 @@ class Agents():
         print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=5):
-        for ep in range(10):
+    def train(self,max_steps=3,episodes=3):
+        #while something do
+        for ep in range(episodes):
             for r_i in range(max_steps):
                 self.roll_in_episode(0)
                 #self.observation_n=self.env.reset()
             self.agent_1.update(self.buffer,self.episode_limit)
-        #leva buffer
-        #rollin con secondo
-        #repeat
-
+        for ep in range(episodes):
+            for _ in range(max_steps):
+                self.roll_in_episode(1)
+            self.agent_2.update(self.buffer,self.episode_limit)
+        #loop
 
     
 if __name__ == '__main__':
