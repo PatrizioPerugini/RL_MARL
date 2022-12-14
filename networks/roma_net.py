@@ -67,7 +67,15 @@ class RomaAgent(nn.Module):
         #----------------------------------------------------------------------------------------
         #RNN AGENT -> fc,gru,fc(which is given by an hypernet)               
         self.fc1 = nn.Linear(input_shape, self.rnn_hidden_dim)
-        self.rnn = nn.GRUCell(self.rnn_hidden_dim, self.rnn_hidden_dim)
+        
+        self.rnn = nn.GRUCell(self.rnn_hidden_dim, self.rnn_hidden_dim)#,batch_first=True)
+
+        #self.rnn = nn.GRU(input_size=self.rnn_hidden_dim,
+        #     hidden_size=self.rnn_hidden_dim,
+        #     num_layers=1,
+        #     batch_first=True,
+        #     bidirectional=False)
+
         #output of latent_net is the input of self.fc2_w_nn
         #this is how we are able to codition the on the actual role
         self.fc2_w_nn = nn.Linear(self.fc_hidden_size, self.rnn_hidden_dim * self.n_actions)
@@ -101,6 +109,7 @@ class RomaAgent(nn.Module):
         return indicator, self.latent[:self.n_agents, :].detach(), self.latent_infer[:self.n_agents, :].detach()
 
     def forward(self,inputs,hidden_state,t=0,train_mode=True,t_glob=0):
+        print("the shape of the inputs is", inputs.shape)
         bs = inputs.shape[0]
         print('hidden_state',hidden_state.shape)
 
@@ -237,7 +246,7 @@ class RomaAgent(nn.Module):
 
     def greedy_action_id(self,inputs,hs):
         hs.to(self.device)
-        print(inputs.shape)
+        print("the shape in greedy action id is",inputs.shape)
         qvals, h,_,_,_ = self.forward(inputs,hs,train_mode=False)
         action_idx = torch.argmax(qvals,dim=-1).item()
         return action_idx, h

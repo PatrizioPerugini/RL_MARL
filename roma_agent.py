@@ -64,6 +64,7 @@ class Agent_ROMA():
         input = torch.from_numpy(input).unsqueeze(0)
         input= input.to(self.device)
         indices,self.hidden_state = self.ROMA_agent.greedy_action_id(input,self.hidden_state)
+        print("succesfully achieved")
         return indices
 
 
