@@ -101,10 +101,13 @@ class RomaAgent(nn.Module):
         return indicator, self.latent[:self.n_agents, :].detach(), self.latent_infer[:self.n_agents, :].detach()
 
     def forward(self,inputs,hidden_state,t=0,train_mode=True,t_glob=0):
+        bs = inputs.shape[0]
+        print('hidden_state',hidden_state.shape)
+
         inputs = inputs.reshape(-1, self.input_shape) # bs*num_ag,obs+ac
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)  #bs*num_ag, rnn_hd
                                     #input_shape..se pia tutto
-       
+        
         #nothing
         embed_fc_input = inputs[:, - self.embed_fc_input_size:]  # own features(unit_type_bits+shield_bits_ally)+id
         #encode everithing-> mu ,var
@@ -113,7 +116,7 @@ class RomaAgent(nn.Module):
         
         self.latent[:, -self.latent_dim:] = torch.clamp(torch.exp(self.latent[:, -self.latent_dim:]), min=self.var_floor)  # var
         #shape is (bs*n_ag, latent_dim*2)       
-        latent_embed = self.latent.reshape(self.batch_size * self.n_agents, self.latent_dim * 2)
+        latent_embed = self.latent.reshape(bs * self.n_agents, self.latent_dim * 2)
         
         #shape is (bs*n_ag, latent_dim)
                                                     #media                              #var
@@ -151,8 +154,8 @@ class RomaAgent(nn.Module):
             mi_cat = None
             
             #shape is (bs,n_agents,latent_dim)
-            latent_dis = latent.clone().view(self.batch_size, self.n_agents, -1)
-            latent_move = latent.clone().view(self.batch_size, self.n_agents, -1)
+            latent_dis = latent.clone().view(bs, self.n_agents, -1)
+            latent_move = latent.clone().view(bs, self.n_agents, -1)
 
             for agent_i in range(self.n_agents):
                     latent_move = torch.cat([latent_move[:, -1, :].unsqueeze(1), 
@@ -164,7 +167,7 @@ class RomaAgent(nn.Module):
                                               ], dim=2)
                     
                     #shape is (bs*n_agents,latent_dim)
-                    latent_view=latent_move.view(self.batch_size * self.n_agents, -1)
+                    latent_view=latent_move.view(bs * self.n_agents, -1)
                     
                     #shape is (bs*n_agents,1)
                     mi = torch.clamp(gaussian_embed.log_prob(latent_view)
@@ -176,15 +179,15 @@ class RomaAgent(nn.Module):
 
                     if dissimilarity_cat is None:
                         
-                        dissimilarity_cat = dissimilarity.view(self.batch_size, -1).clone()
+                        dissimilarity_cat = dissimilarity.view(bs, -1).clone()
                     else:
                         
-                        dissimilarity_cat = torch.cat([dissimilarity_cat, dissimilarity.view(self.batch_size, -1)], dim=1)
+                        dissimilarity_cat = torch.cat([dissimilarity_cat, dissimilarity.view(bs, -1)], dim=1)
                         
                     if mi_cat is None:
-                        mi_cat = mi.view(self.batch_size, -1).clone()
+                        mi_cat = mi.view(bs, -1).clone()
                     else:
-                        mi_cat = torch.cat([mi_cat,mi.view(self.batch_size,-1)],dim=1)
+                        mi_cat = torch.cat([mi_cat,mi.view(bs,-1)],dim=1)
             
                 #the shape of dissimilarity_cat is (bs,n_agents*n_agents) -> diss with each agents couple
                 #the shape of mi_cat is (bs,n_agents*n_agents)
@@ -196,8 +199,8 @@ class RomaAgent(nn.Module):
             #normalized, shape is still (bs,n_agents*n_agents)
             dissimilarity_cat=(dissimilarity_cat-di_min)/(di_max-di_min+ 1e-12 )
             #we want the agents to behave differently
-            dis_loss = - torch.clamp(mi_cat+dissimilarity_cat, max=1.0).sum()/self.batch_size/self.n_agents           
-            dis_norm = torch.norm(dissimilarity_cat, p=1, dim=1).sum() / self.batch_size / self.n_agents
+            dis_loss = - torch.clamp(mi_cat+dissimilarity_cat, max=1.0).sum()/bs/self.n_agents           
+            dis_norm = torch.norm(dissimilarity_cat, p=1, dim=1).sum() / bs / self.n_agents
 
             c_dis_loss = (dis_loss + dis_norm) / self.n_agents
 
@@ -232,7 +235,12 @@ class RomaAgent(nn.Module):
                h.view(-1,self.n_agents,self.rnn_hidden_dim),\
                loss, c_dis_loss,ce_loss
 
-
+    def greedy_action_id(self,inputs,hs):
+        hs.to(self.device)
+        print(inputs.shape)
+        qvals, h,_,_,_ = self.forward(inputs,hs,train_mode=False)
+        action_idx = torch.argmax(qvals,dim=-1).item()
+        return action_idx, h
 
 
 if __name__ == '__main__':

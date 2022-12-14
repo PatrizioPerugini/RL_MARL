@@ -11,7 +11,7 @@ import torch.nn as nn
 
 
 
-class Agent_Qmix():
+class Agent_ROMA():
 
     def __init__(self,custom_env,team):#,replay_buffer):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -37,7 +37,6 @@ class Agent_Qmix():
                       rnn_hidden_dim=self.rnn_hidden_dim,
                       batch_size=self.batch_size)
                       
-                      
 
         self.Qmix_hidden_dim = 32
         self.qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim).to(self.device)
@@ -51,7 +50,7 @@ class Agent_Qmix():
         self.learning_rate=0.00025
         self.epsilon=0.3
    
-        self.hidden_state = self.reset_hidden_states()
+        self.hidden_state = self.reset_hidden_states(self.batch_size)
                 #optimize multiple net
         
         params = list(self.qmix.parameters()) + list(self.ROMA_agent.parameters())
@@ -61,11 +60,10 @@ class Agent_Qmix():
         self.loss_function = nn.MSELoss()
 
     def greedy_action(self,input):
-        indices = []
-        for i in range(len(self.n_agents)):
-            res = torch.from_numpy(input[i]).unsqueeze(0).to(self.device)
-            #idx,_ = self.rnn_agents[i].greedy_action_id(res)
-            indices.append(idx)      
+        input = self.team_split(input)
+        input = torch.from_numpy(input).unsqueeze(0)
+        input= input.to(self.device)
+        indices,self.hidden_state = self.ROMA_agent.greedy_action_id(input,self.hidden_state)
         return indices
 
 
@@ -77,19 +75,16 @@ class Agent_Qmix():
     
     def act(self, input, exploit):  
         input = self.team_split(input)
-        #actions = self.greedy_action(input)
-        actions = self.action_space.sample()[0]
-        if not exploit:
-            actions = self.action_space.sample()[0]
+        actions = self.greedy_action(input)
+        #if not exploit:
+        #    actions = self.action_space.sample()[0]
         return actions
     
-    def reset_hidden_states(self):
-        return self.ROMA_agent.fc1.weight.new(self.batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
+    def reset_hidden_states(self,batch_size):
+        return self.ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
 
 
     def build_inputs(self, batch, t):
-        # Assumes homogenous agents with flat observations.
-        # Other MACs might want to e.g. delegate building inputs to each agent
         inputs = []
         obs = batch["o"][:, t] 
         a_id = batch["a"][:,t]
@@ -104,7 +99,7 @@ class Agent_Qmix():
             
             inputs.append(np.hstack((obs[j].astype('float32'),np.array(l_action).astype('float32'))))
 
-        return torch.Tensor(inputs) , torch.LongTensor(a_id)
+        return torch.Tensor(np.array(inputs)) , torch.LongTensor(np.array(a_id))
         
 
     def build_stack(self,batch,episode_limit):
@@ -127,6 +122,20 @@ class Agent_Qmix():
             
         return stack_batch_state,stack_batch_next_state,stack_batch_rewards,stack_batch_terminated
 
+
+    def build_next_inputs(self, batch, t):
+        inputs = []
+        next_obs = batch["o_next"][:, t] 
+        
+        l_action_ids = batch["a"][:, t]
+
+        inputs=[]
+        for j in range(self.batch_size):
+            l_action = [self.action_dict[x] for x in l_action_ids[j]]
+            
+            inputs.append(np.hstack((next_obs[j].astype('float32'),np.array(l_action).astype('float32'))))
+
+        return torch.Tensor(np.array(inputs))
 
 
     def update(self,buffer,episode_limit=150):
@@ -160,41 +169,41 @@ class Agent_Qmix():
                 actions_id =actions_id[:,3:6]
 
             #shape of q is -> (bs,n_agents_n_actions)
-            q_f,self.hidden_state,_,_,_ = self.ROMA_agent.forward(stack_inputs,self.hidden_state)
+            q_f,self.hidden_state,_,_,_ = self.ROMA_agent.forward(stack_inputs,self.hidden_state,train_mode=True)
 
-            q_f = torch.gather(q.reshape(-1,16),1,actions_id.reshape(-1,1)).to(self.device).squeeze(-1)
+            q_f = torch.gather(q_f.reshape(-1,16),1,actions_id.reshape(-1,1)).to(self.device).squeeze(-1)
             q_f = q_f.reshape(2,3)
+
             stack_batch_qvals[:,t,:] = q_f
         
 
-        q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state)#.squeeze(-1)
-
-
-
-        print('q_tot',q_tot.shape)
-        input()
-
-
-
-
-
-
-
-
-        next_q_f = torch.cat((next_qvals[0],next_qvals[1],next_qvals[2]),dim=0)
-        next_q_f_max = torch.max(next_q_f,dim =-1)[0]#.reshape(-1,1)
-        #next_q_f = torch.gather(next_q_f,1,torch.LongTensor(actions_id.reshape(-1,1))).squeeze(-1)
-
-        stack_batch_next_qvals[i,-1]=next_q_f_max
-
-        #we have all the q vals and the states to feed to qmix
-        # in the variables stack_batch_qvals and stack_batch_state
-
         q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state).squeeze(-1)
+        print('q_tot',q_tot.shape)
+        
+
+        self.hidden_state = self.reset_hidden_states(self.batch_size)
+
+        for t in range(traj_len): #trajectory len
+           
+            stack_next_inputs = self.build_next_inputs(batch, t)
+
+            #stack inputs shape after split -> (bs,n_agents,obs+act)
+            if self.team ==1:
+                stack_next_inputs = stack_next_inputs[:,0:3,:]
+            else: 
+                stack_next_inputs = stack_next_inputs[:,3:6,:]
+
+            #shape of q is -> (bs,n_agents_n_actions)
+            next_q_f,self.hidden_state,_,_,_ = self.ROMA_agent.forward(stack_next_inputs,self.hidden_state,train_mode=False)
+            next_q_f_max = torch.max(next_q_f,dim =-1)[0].reshape(2,3)
+            stack_batch_next_qvals[:,t,:] = next_q_f_max
+
         #print(q_tot.shape) -> (bs,t,1)
         next_qtot_max = self.target_qmix(stack_batch_next_qvals,stack_batch_next_state)
+
         rews = stack_batch_rewards.sum(-1) 
         target_qtot = rews + (1-stack_batch_terminated)*next_qtot_max.squeeze(-1)*self.gamma
+        
         loss = self.loss_function(q_tot, target_qtot)
         print("the loss is",loss)
         loss.backward()
@@ -211,15 +220,12 @@ class Agent_Qmix():
     
     def save(self):
         torch.save(self.qmix.state_dict(),  "model_qmix" +"_"+ str(self.team)+".pt")
-        torch.save(self.rnn_1.state_dict(), "model_rnn1" +"_"+ str(self.team)+".pt")
-        torch.save(self.rnn_2.state_dict(), "model_rnn2" +"_"+ str(self.team)+".pt")
-        torch.save(self.rnn_3.state_dict(), "model_rnn3" +"_"+ str(self.team)+".pt")
+        torch.save(self.ROMA_agent.state_dict(),  "model_ROMA_agent" +"_"+ str(self.team)+".pt")
+
     
     def load(self):
-        self.qmix.load_state_dict(torch.load("model_qmix.pt", map_location=self.device))
-        self.rnn_1.load_state_dict(torch.load("model_rnn1.pt", map_location=self.device))
-        self.rnn_2.load_state_dict(torch.load("model_rnn2.pt", map_location=self.device))
-        self.rnn_3.load_state_dict(torch.load("model_rnn3.pt", map_location=self.device))
+        self.qmix.load_state_dict(torch.load("model_qmix" +"_"+ str(self.team)+".pt", map_location=self.device))
+        self.ROMA_agent.load_state_dict(torch.load("model_ROMA_agent" +"_"+ str(self.team)+".pt", map_location=self.device))
     
     def update_target_q_net(self):
         self.target_qmix.load_state_dict(self.qmix.state_dict())
@@ -232,8 +238,8 @@ class Agents():
     def __init__(self,custom_env):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.env = custom_env.env
-        self.agent_1 = Agent_Qmix(custom_env,team = 1)
-        self.agent_2 = Agent_Qmix(custom_env,team = 2)
+        self.agent_1 = Agent_ROMA(custom_env,team = 1)
+        self.agent_2 = Agent_ROMA(custom_env,team = 2)
         self.action_space = custom_env.action_space
         self.action_dict = self.action_space.actions
         self.action_shape = 5
@@ -304,7 +310,9 @@ class Agents():
         id = 1
         done = False
         self.last_action = np.zeros((6,5))
-        
+        self.agent_1.reset_hidden_states(1)
+        self.agent_2.reset_hidden_states(1)
+
 
         while (id<self.episode_limit and not done):
             if training_ag:
