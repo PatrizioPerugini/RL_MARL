@@ -68,13 +68,13 @@ class RomaAgent(nn.Module):
         #RNN AGENT -> fc,gru,fc(which is given by an hypernet)               
         self.fc1 = nn.Linear(input_shape, self.rnn_hidden_dim)
         
-        self.rnn = nn.GRUCell(self.rnn_hidden_dim, self.rnn_hidden_dim)#,batch_first=True)
-
-        #self.rnn = nn.GRU(input_size=self.rnn_hidden_dim,
-        #     hidden_size=self.rnn_hidden_dim,
-        #     num_layers=1,
-        #     batch_first=True,
-        #     bidirectional=False)
+        #self.rnn = nn.GRUCell(self.rnn_hidden_dim, self.rnn_hidden_dim)
+        self.GRU_num_layers = 1
+        self.rnn = nn.GRU(input_size=self.rnn_hidden_dim,
+             hidden_size=self.rnn_hidden_dim,
+             num_layers=self.GRU_num_layers,
+             batch_first=True,
+             bidirectional=False)
 
         #output of latent_net is the input of self.fc2_w_nn
         #this is how we are able to codition the on the actual role
@@ -109,9 +109,7 @@ class RomaAgent(nn.Module):
         return indicator, self.latent[:self.n_agents, :].detach(), self.latent_infer[:self.n_agents, :].detach()
 
     def forward(self,inputs,hidden_state,t=0,train_mode=True,t_glob=0):
-        print("the shape of the inputs is", inputs.shape)
         bs = inputs.shape[0]
-        print('hidden_state',hidden_state.shape)
 
         inputs = inputs.reshape(-1, self.input_shape) # bs*num_ag,obs+ac
         h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)  #bs*num_ag, rnn_hd
@@ -140,6 +138,8 @@ class RomaAgent(nn.Module):
 
         if train_mode:
             #shape is (bs*n_ag, latent_dim*2)
+
+
             self.latent_infer = self.inference_net(torch.cat([h_in.detach(), inputs], dim=1))
             self.latent_infer[:, -self.latent_dim:] = torch.clamp(torch.exp(self.latent_infer[:, -self.latent_dim:]),min=self.var_floor)
             
@@ -156,7 +156,8 @@ class RomaAgent(nn.Module):
             loss = torch.clamp(loss, max=2e3)
             # loss = loss / (self.bs * self.n_agents)
             ce_loss = torch.log(1 + torch.exp(loss))
-            #print(ce_loss) -> 6.05
+
+
         #-----------------------loss 1 done -----------------------
             dis_loss = 0
             dissimilarity_cat = None
@@ -234,21 +235,33 @@ class RomaAgent(nn.Module):
         fc2_b = self.fc2_b_nn(latent)
         fc2_w = fc2_w.reshape(-1, self.rnn_hidden_dim, self.n_actions)
         fc2_b = fc2_b.reshape((-1, 1, self.n_actions))
+
         x = F.relu(self.fc1(inputs))  
-        h = self.rnn(x, h_in)
-        h = h.reshape(-1, 1, self.rnn_hidden_dim)
-        q = torch.bmm(h, fc2_w) + fc2_b
-        h = h.reshape(-1, self.rnn_hidden_dim)
+        
+        x = x.unsqueeze(1)
+        #h_in (GRU_l,bs*n_agent,hidden_dim)
+        h_in = torch.Tensor(h_in).reshape(self.GRU_num_layers,-1, self.rnn_hidden_dim)
+        #print('x shape', x.shape)
+        #x = x.reshape(bs,self.n_agents,-1)
+        #h_in = h_in.reshape(self.n_agents,bs,-1)
+        _,h_out= self.rnn(x, h_in)
+        
+
+        #h_in (bs*n_agent,1,hidden_dim)
+        h_out = torch.squeeze(h_out).unsqueeze(1)
+        q = torch.bmm(h_out, fc2_w) + fc2_b
+        h_out = torch.squeeze(h_out)
         
         return q.view(-1,self.n_agents, self.n_actions),\
-               h.view(-1,self.n_agents,self.rnn_hidden_dim),\
+               h_out.view(-1,self.n_agents,self.rnn_hidden_dim),\
                loss, c_dis_loss,ce_loss
 
     def greedy_action_id(self,inputs,hs):
         hs.to(self.device)
-        print("the shape in greedy action id is",inputs.shape)
         qvals, h,_,_,_ = self.forward(inputs,hs,train_mode=False)
-        action_idx = torch.argmax(qvals,dim=-1).item()
+
+        action_idx = torch.argmax(qvals,dim=-1)
+        
         return action_idx, h
 
 

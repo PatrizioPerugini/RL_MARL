@@ -5,7 +5,7 @@ from networks.roma_net import RomaAgent
 from networks.qmix_net import Qmix_Net
 
 import random
-from copy import copy
+from copy import deepcopy
 import numpy as np
 import torch.nn as nn
 
@@ -30,12 +30,16 @@ class Agent_ROMA():
 
         self.input_shape = self.state_shape + self.action_space.action_len
         self.rnn_hidden_dim = 32
+        self.hidden_state = None
+        self.target_hidden_state = None
         self.ROMA_agent=RomaAgent(self.input_shape,
                       self.n_agents,
                       self.n_actions,
                       latent_dim=12,
                       rnn_hidden_dim=self.rnn_hidden_dim,
                       batch_size=self.batch_size)
+        
+        self.target_ROMA_agent = deepcopy(self.ROMA_agent)
                       
 
         self.Qmix_hidden_dim = 32
@@ -50,7 +54,7 @@ class Agent_ROMA():
         self.learning_rate=0.00025
         self.epsilon=0.3
    
-        self.hidden_state = self.reset_hidden_states(self.batch_size)
+        self.reset_hidden_states(self.batch_size)
                 #optimize multiple net
         
         params = list(self.qmix.parameters()) + list(self.ROMA_agent.parameters())
@@ -60,12 +64,10 @@ class Agent_ROMA():
         self.loss_function = nn.MSELoss()
 
     def greedy_action(self,input):
-        input = self.team_split(input)
         input = torch.from_numpy(input).unsqueeze(0)
         input= input.to(self.device)
         indices,self.hidden_state = self.ROMA_agent.greedy_action_id(input,self.hidden_state)
-        print("succesfully achieved")
-        return indices
+        return indices.squeeze(0).tolist()
 
 
     def team_split(self,obj):
@@ -77,12 +79,16 @@ class Agent_ROMA():
     def act(self, input, exploit):  
         input = self.team_split(input)
         actions = self.greedy_action(input)
-        #if not exploit:
-        #    actions = self.action_space.sample()[0]
+        
+        if not exploit:
+            actions = self.action_space.sample()[0]
         return actions
     
-    def reset_hidden_states(self,batch_size):
-        return self.ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
+    def reset_hidden_states(self,batch_size = 1):
+        self.hidden_state = self.ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
+        self.target_hidden_state= self.target_ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
+        
+
 
 
     def build_inputs(self, batch, t):
@@ -140,24 +146,27 @@ class Agent_ROMA():
 
 
     def update(self,buffer,episode_limit=150):
-        print("training team number",self.team)
+
+        self.reset_hidden_states(self.batch_size)
         #self.load()
         #batch = buffer.sample(self.batch_size)
-        qvals = [0,0,0]
-        next_qvals = [0,0,0]
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
         #(bs,traj,6,64)
         stack_batch_next_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)
         batch = buffer.sample(self.batch_size)
         
-        traj_len=len(batch['o'][0])
+        traj_len_max = len(batch['o'][0])
 
         stack_batch_state,stack_batch_next_state, stack_batch_rewards, stack_batch_terminated =\
             self.build_stack(batch,episode_limit)
-        stack_batch_qvals = torch.zeros((self.batch_size,traj_len,self.n_agents))
+        stack_batch_qvals = torch.zeros((self.batch_size,traj_len_max,self.n_agents))
 
-        for t in range(traj_len): #trajectory len
+        loss = 0     #regularization
+        d_loss = 0        #dissimilary
+        c_loss = 0       #crossentropy
+
+        for t in range(traj_len_max): #trajectory len
            
             stack_inputs, actions_id = self.build_inputs(batch, t)
 
@@ -170,21 +179,25 @@ class Agent_ROMA():
                 actions_id =actions_id[:,3:6]
 
             #shape of q is -> (bs,n_agents_n_actions)
-            q_f,self.hidden_state,_,_,_ = self.ROMA_agent.forward(stack_inputs,self.hidden_state,train_mode=True)
-
+            q_f,self.hidden_state,loss_,d_loss_,c_loss_ = self.ROMA_agent.forward(stack_inputs,self.hidden_state,train_mode=True)
+            loss += loss_
+            d_loss += d_loss_
+            c_loss += c_loss_
             q_f = torch.gather(q_f.reshape(-1,16),1,actions_id.reshape(-1,1)).to(self.device).squeeze(-1)
-            q_f = q_f.reshape(2,3)
+            q_f = q_f.reshape(-1,self.n_agents)
 
             stack_batch_qvals[:,t,:] = q_f
         
 
         q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state).squeeze(-1)
-        print('q_tot',q_tot.shape)
         
+        loss /= traj_len_max
+        d_loss /= traj_len_max
+        c_loss /= traj_len_max
 
-        self.hidden_state = self.reset_hidden_states(self.batch_size)
+        self.reset_hidden_states(batch_size = self.batch_size)
 
-        for t in range(traj_len): #trajectory len
+        for t in range(traj_len_max): #trajectory len
            
             stack_next_inputs = self.build_next_inputs(batch, t)
 
@@ -195,8 +208,10 @@ class Agent_ROMA():
                 stack_next_inputs = stack_next_inputs[:,3:6,:]
 
             #shape of q is -> (bs,n_agents_n_actions)
-            next_q_f,self.hidden_state,_,_,_ = self.ROMA_agent.forward(stack_next_inputs,self.hidden_state,train_mode=False)
-            next_q_f_max = torch.max(next_q_f,dim =-1)[0].reshape(2,3)
+            next_q_f,self.hidden_state,_,_,_ = self.target_ROMA_agent.forward(stack_next_inputs,self.hidden_state,train_mode=False)
+            next_q_f=next_q_f.reshape(-1,self.n_agents,self.n_actions)
+
+            next_q_f_max = torch.max(next_q_f,dim =-1)[0]
             stack_batch_next_qvals[:,t,:] = next_q_f_max
 
         #print(q_tot.shape) -> (bs,t,1)
@@ -205,8 +220,10 @@ class Agent_ROMA():
         rews = stack_batch_rewards.sum(-1) 
         target_qtot = rews + (1-stack_batch_terminated)*next_qtot_max.squeeze(-1)*self.gamma
         
-        loss = self.loss_function(q_tot, target_qtot)
-        print("the loss is",loss)
+        TD_loss = self.loss_function(q_tot.detach(), target_qtot)
+        #td_error = (q_tot.detach()- target_qtot)
+        loss += TD_loss 
+        print("TEAM", self.team,"loss is: ",loss.item())
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
@@ -230,6 +247,7 @@ class Agent_ROMA():
     
     def update_target_q_net(self):
         self.target_qmix.load_state_dict(self.qmix.state_dict())
+        self.target_ROMA_agent.load_state_dict(self.ROMA_agent.state_dict())
 
 
 
@@ -283,16 +301,15 @@ class Agents():
 
         action_1_id = self.agent_1.act(input_rnn,exploit[0])
         action_2_id = self.agent_2.act(input_rnn,exploit[1])
-        action_n = action_1_id + action_2_id
-        
-        action_to_do = [ self.action_dict[idx] for idx in action_n]
+        action_n_id = action_1_id + action_2_id
+        action_to_do = [ self.action_dict[idx] for idx in action_n_id]
 
         observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
         #self.total_rewards[0] += sum(reward_n[0:2])
         #self.total_rewards[1] += sum(reward_n[3:5])
-        return (old_observation_n, action_n, old_global_state, reward_n,
+        return (old_observation_n, action_n_id, old_global_state, reward_n,
                      observation_n, global_state, done_n)
     
 
@@ -343,16 +360,19 @@ class Agents():
 
         
         
-        print('Batch saved in the buffer.')
+        #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
     def train(self,max_steps=3,episodes=3):
         #while something do
+        print('--------------Training TEAM 1-----------------------')
         for ep in range(episodes):
+            
             for r_i in range(max_steps):
                 self.roll_in_episode(0)
                 #self.observation_n=self.env.reset()
             self.agent_1.update(self.buffer,self.episode_limit)
+        print('--------------Training TEAM 2-----------------------')
         for ep in range(episodes):
             for _ in range(max_steps):
                 self.roll_in_episode(1)
@@ -360,9 +380,3 @@ class Agents():
         #loop
 
 
-    
-if __name__ == '__main__':
-    agent = Agents()
-    agent.roll_in_episode(1)
-    sample=agent.buffer.sample(2)
-    print('daje brah')
