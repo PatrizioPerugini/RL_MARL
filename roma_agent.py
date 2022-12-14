@@ -16,7 +16,7 @@ class Agent_ROMA():
     def __init__(self,custom_env,team):#,replay_buffer):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
-        self.device = torch.device("cpu")
+        #self.device = torch.device("cpu")
         
         self.env = custom_env.env
         self.action_space = custom_env.action_space
@@ -26,7 +26,7 @@ class Agent_ROMA():
         self.n_actions = self.action_space.count
         self.state_shape = self.env.observation_space.shape[0]
         self.action_dict = self.action_space.actions
-        self.batch_size = 2
+        self.batch_size = 32
 
         self.input_shape = self.state_shape + self.action_space.action_len
         self.rnn_hidden_dim = 32
@@ -50,9 +50,13 @@ class Agent_ROMA():
         # Training stuff
         #self.tot_episodes = 500
         #self.max_steps_per_episode = 1000
+        self.cnt_update=0
+        self.update_freq=10
         self.gamma=0.99
         self.learning_rate=0.00025
-        self.epsilon=0.3
+        self.epsilon=0.9
+        self.epsilon_decay=0.999
+        self.epsilon_treshold=0.07
    
         self.reset_hidden_states(self.batch_size)
                 #optimize multiple net
@@ -146,7 +150,6 @@ class Agent_ROMA():
 
 
     def update(self,buffer,episode_limit=150):
-
         self.reset_hidden_states(self.batch_size)
         #self.load()
         #batch = buffer.sample(self.batch_size)
@@ -155,18 +158,16 @@ class Agent_ROMA():
         #(bs,traj,6,64)
         stack_batch_next_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)
         batch = buffer.sample(self.batch_size)
-        
-        traj_len_max = len(batch['o'][0])
 
         stack_batch_state,stack_batch_next_state, stack_batch_rewards, stack_batch_terminated =\
             self.build_stack(batch,episode_limit)
-        stack_batch_qvals = torch.zeros((self.batch_size,traj_len_max,self.n_agents))
+        
 
         loss = 0     #regularization
         d_loss = 0        #dissimilary
         c_loss = 0       #crossentropy
 
-        for t in range(traj_len_max): #trajectory len
+        for t in range(episode_limit): #trajectory len
            
             stack_inputs, actions_id = self.build_inputs(batch, t)
 
@@ -183,7 +184,7 @@ class Agent_ROMA():
             loss += loss_
             d_loss += d_loss_
             c_loss += c_loss_
-            q_f = torch.gather(q_f.reshape(-1,16),1,actions_id.reshape(-1,1)).to(self.device).squeeze(-1)
+            q_f = torch.gather(q_f.reshape(-1,self.n_actions),1,actions_id.reshape(-1,1)).to(self.device).squeeze(-1)
             q_f = q_f.reshape(-1,self.n_agents)
 
             stack_batch_qvals[:,t,:] = q_f
@@ -191,13 +192,13 @@ class Agent_ROMA():
 
         q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state).squeeze(-1)
         
-        loss /= traj_len_max
-        d_loss /= traj_len_max
-        c_loss /= traj_len_max
+        loss /= episode_limit
+        d_loss /= episode_limit
+        c_loss /= episode_limit
 
         self.reset_hidden_states(batch_size = self.batch_size)
 
-        for t in range(traj_len_max): #trajectory len
+        for t in range(episode_limit): #trajectory len
            
             stack_next_inputs = self.build_next_inputs(batch, t)
 
@@ -221,14 +222,21 @@ class Agent_ROMA():
         target_qtot = rews + (1-stack_batch_terminated)*next_qtot_max.squeeze(-1)*self.gamma
         
         TD_loss = self.loss_function(q_tot.detach(), target_qtot)
-        #td_error = (q_tot.detach()- target_qtot)
+       
         loss += TD_loss 
         print("TEAM", self.team,"loss is: ",loss.item())
+        print("Reward for this update is: ",rews)
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
         self.save()
-        self.update_target_q_net()
+        if self.cnt_update%self.update_freq==0:
+
+            self.update_target_q_net()
+        self.cnt_update+=1
+        if self.epsilon>self.epsilon_treshold:
+            self.epsilon*=self.epsilon_decay
+
     
     def to(self, device):
         ret = super().to(device)
@@ -269,12 +277,12 @@ class Agents():
 
         # global vars
         self.observation_n = self.env.reset()
-        self.epsilon=0.3
-
+        self.epsilon=0.9
+        self.training_epochs=50
 
         #buffer 
-        self.episode_limit = 20
-        self.buffer_size = 50
+        self.episode_limit = 50
+        self.buffer_size = 5000
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
         self.episode_batch = {'o': np.zeros([self.episode_limit, self.n_agents, self.obs_shape]),
@@ -303,7 +311,7 @@ class Agents():
         action_2_id = self.agent_2.act(input_rnn,exploit[1])
         action_n_id = action_1_id + action_2_id
         action_to_do = [ self.action_dict[idx] for idx in action_n_id]
-
+        
         observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
@@ -313,9 +321,10 @@ class Agents():
                      observation_n, global_state, done_n)
     
 
-    def e_choice(self):
+    def e_choice(self,agent):
+        
         p = random.random()
-        if p<self.epsilon:
+        if p<agent.epsilon:
             return False
         else:
             return True
@@ -333,10 +342,10 @@ class Agents():
 
 
         while (id<self.episode_limit and not done):
-            if training_ag:
-                e_exploit = [True,self.e_choice()]
+            if training_ag=='lazio':
+                e_exploit = [True,self.e_choice(self.agent_2)]
             else:
-                e_exploit = [self.e_choice(),True]
+                e_exploit = [self.e_choice(self.agent_1),True]
 
             (o, a, s, r, o_next, s_next, d)= self.make_step( self.observation_n,self.last_action,e_exploit)
             done = d[0]
@@ -363,20 +372,24 @@ class Agents():
         #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=3,episodes=3):
-        #while something do
-        print('--------------Training TEAM 1-----------------------')
-        for ep in range(episodes):
-            
-            for r_i in range(max_steps):
-                self.roll_in_episode(0)
-                #self.observation_n=self.env.reset()
-            self.agent_1.update(self.buffer,self.episode_limit)
-        print('--------------Training TEAM 2-----------------------')
-        for ep in range(episodes):
-            for _ in range(max_steps):
-                self.roll_in_episode(1)
-            self.agent_2.update(self.buffer,self.episode_limit)
-        #loop
-
+    def train(self,max_steps=20,episodes=10):
+        
+        print("START training")
+        
+        for epochs in range(self.training_epochs):
+            print("EPOCH: ",epochs)
+            print('--------------Training TEAM 1-----------------------')
+            for ep in range(episodes):
+                print("\rRolling in episode {:d}".format(ep),end="")
+                for r_i in range(max_steps):
+                    self.roll_in_episode("roma")
+                self.agent_1.update(self.buffer,self.episode_limit)
+            print('--------------Training TEAM 2-----------------------')
+            for ep in range(episodes):
+                print("\rRolling in episode {:d}".format(ep),end="")
+                for _ in range(max_steps):
+                    self.roll_in_episode("lazio")
+                self.agent_2.update(self.buffer,self.episode_limit)
+  
+        print("END training")
 
