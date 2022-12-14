@@ -64,12 +64,10 @@ class Agent_ROMA():
         self.loss_function = nn.MSELoss()
 
     def greedy_action(self,input):
-        input = self.team_split(input)
         input = torch.from_numpy(input).unsqueeze(0)
         input= input.to(self.device)
         indices,self.hidden_state = self.ROMA_agent.greedy_action_id(input,self.hidden_state)
-        print("succesfully achieved")
-        return indices
+        return indices.squeeze(0).tolist()
 
 
     def team_split(self,obj):
@@ -80,8 +78,8 @@ class Agent_ROMA():
     
     def act(self, input, exploit):  
         input = self.team_split(input)
-        #actions = self.greedy_action(input)
-        actions = self.action_space.sample()[0]
+        actions = self.greedy_action(input)
+        
         if not exploit:
             actions = self.action_space.sample()[0]
         return actions
@@ -148,7 +146,6 @@ class Agent_ROMA():
 
 
     def update(self,buffer,episode_limit=150):
-        print("training team number",self.team)
 
         self.reset_hidden_states(self.batch_size)
         #self.load()
@@ -226,7 +223,7 @@ class Agent_ROMA():
         TD_loss = self.loss_function(q_tot.detach(), target_qtot)
         #td_error = (q_tot.detach()- target_qtot)
         loss += TD_loss 
-        print("the loss is",loss)
+        print("TEAM", self.team,"loss is: ",loss.item())
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
@@ -304,16 +301,15 @@ class Agents():
 
         action_1_id = self.agent_1.act(input_rnn,exploit[0])
         action_2_id = self.agent_2.act(input_rnn,exploit[1])
-        action_n = action_1_id + action_2_id
-        
-        action_to_do = [ self.action_dict[idx] for idx in action_n]
+        action_n_id = action_1_id + action_2_id
+        action_to_do = [ self.action_dict[idx] for idx in action_n_id]
 
         observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
         #self.total_rewards[0] += sum(reward_n[0:2])
         #self.total_rewards[1] += sum(reward_n[3:5])
-        return (old_observation_n, action_n, old_global_state, reward_n,
+        return (old_observation_n, action_n_id, old_global_state, reward_n,
                      observation_n, global_state, done_n)
     
 
@@ -364,16 +360,19 @@ class Agents():
 
         
         
-        print('Batch saved in the buffer.')
+        #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
     def train(self,max_steps=3,episodes=3):
         #while something do
+        print('--------------Training TEAM 1-----------------------')
         for ep in range(episodes):
+            
             for r_i in range(max_steps):
                 self.roll_in_episode(0)
                 #self.observation_n=self.env.reset()
             self.agent_1.update(self.buffer,self.episode_limit)
+        print('--------------Training TEAM 2-----------------------')
         for ep in range(episodes):
             for _ in range(max_steps):
                 self.roll_in_episode(1)

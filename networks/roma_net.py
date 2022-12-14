@@ -242,7 +242,6 @@ class RomaAgent(nn.Module):
         #h_in (GRU_l,bs*n_agent,hidden_dim)
         h_in = torch.Tensor(h_in).reshape(self.GRU_num_layers,-1, self.rnn_hidden_dim)
         #print('x shape', x.shape)
-        print('h_in shape', h_in.shape)
         #x = x.reshape(bs,self.n_agents,-1)
         #h_in = h_in.reshape(self.n_agents,bs,-1)
         _,h_out= self.rnn(x, h_in)
@@ -250,7 +249,6 @@ class RomaAgent(nn.Module):
 
         #h_in (bs*n_agent,1,hidden_dim)
         h_out = torch.squeeze(h_out).unsqueeze(1)
-        print('h_out shape',h_out.shape)
         q = torch.bmm(h_out, fc2_w) + fc2_b
         h_out = torch.squeeze(h_out)
         
@@ -260,9 +258,10 @@ class RomaAgent(nn.Module):
 
     def greedy_action_id(self,inputs,hs):
         hs.to(self.device)
-        print("the shape in greedy action id is",inputs.shape)
         qvals, h,_,_,_ = self.forward(inputs,hs,train_mode=False)
-        action_idx = torch.argmax(qvals,dim=-1).item()
+
+        action_idx = torch.argmax(qvals,dim=-1)
+        
         return action_idx, h
 
 
