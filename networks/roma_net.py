@@ -240,7 +240,8 @@ class RomaAgent(nn.Module):
         
         x = x.unsqueeze(1)
         #h_in (GRU_l,bs*n_agent,hidden_dim)
-        h_in = torch.Tensor(h_in).reshape(self.GRU_num_layers,-1, self.rnn_hidden_dim)
+        #h_in.cpu()
+        h_in = (h_in).reshape(self.GRU_num_layers,-1, self.rnn_hidden_dim).to(self.device)
         #print('x shape', x.shape)
         #x = x.reshape(bs,self.n_agents,-1)
         #h_in = h_in.reshape(self.n_agents,bs,-1)

@@ -9,7 +9,9 @@ from copy import deepcopy
 import numpy as np
 import torch.nn as nn
 
+import warnings
 
+warnings.filterwarnings('ignore')
 
 class Agent_ROMA():
 
@@ -37,7 +39,7 @@ class Agent_ROMA():
                       self.n_actions,
                       latent_dim=12,
                       rnn_hidden_dim=self.rnn_hidden_dim,
-                      batch_size=self.batch_size)
+                      batch_size=self.batch_size).to(self.device)
         
         self.target_ROMA_agent = deepcopy(self.ROMA_agent)
                       
@@ -89,7 +91,7 @@ class Agent_ROMA():
         return actions
     
     def reset_hidden_states(self,batch_size = 1):
-        self.hidden_state = self.ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
+        self.hidden_state = self.ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_().to(self.device)
         self.target_hidden_state= self.target_ROMA_agent.fc1.weight.new(batch_size,self.n_agents, self.rnn_hidden_dim).zero_()
         
 
@@ -110,7 +112,8 @@ class Agent_ROMA():
             
             inputs.append(np.hstack((obs[j].astype('float32'),np.array(l_action).astype('float32'))))
 
-        return torch.Tensor(np.array(inputs)) , torch.LongTensor(np.array(a_id))
+        return torch.Tensor(np.array(inputs)).to(self.device) \
+                , torch.LongTensor(np.array(a_id)).to(self.device)
         
 
     def build_stack(self,batch,episode_limit):
@@ -146,7 +149,7 @@ class Agent_ROMA():
             
             inputs.append(np.hstack((next_obs[j].astype('float32'),np.array(l_action).astype('float32'))))
 
-        return torch.Tensor(np.array(inputs))
+        return torch.Tensor(np.array(inputs)).to(self.device)
 
 
     def update(self,buffer,episode_limit=150):
@@ -192,6 +195,7 @@ class Agent_ROMA():
 
         q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state).squeeze(-1)
         
+        
         loss /= episode_limit
         d_loss /= episode_limit
         c_loss /= episode_limit
@@ -225,7 +229,7 @@ class Agent_ROMA():
        
         loss += TD_loss 
         print("TEAM", self.team,"loss is: ",loss.item())
-        print("Reward for this update is: ",rews)
+        
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
