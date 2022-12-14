@@ -109,11 +109,9 @@ class RomaAgent(nn.Module):
         embed_fc_input = inputs[:, - self.embed_fc_input_size:]  # own features(unit_type_bits+shield_bits_ally)+id
         #encode everithing-> mu ,var
        
-        
         self.latent = self.embed_net(embed_fc_input) #(n_agents,latent_dim*2)
         
         self.latent[:, -self.latent_dim:] = torch.clamp(torch.exp(self.latent[:, -self.latent_dim:]), min=self.var_floor)  # var
-
         #shape is (bs*n_ag, latent_dim*2)       
         latent_embed = self.latent.reshape(self.batch_size * self.n_agents, self.latent_dim * 2)
         
@@ -240,8 +238,9 @@ class RomaAgent(nn.Module):
 if __name__ == '__main__':
     
     agent = RomaAgent(input_shape=64+5,n_agents=3,n_actions=16,latent_dim=8,rnn_hidden_dim=32,
-                        batch_size=64,fc_hidden_size=12)
+                        batch_size=2,fc_hidden_size=12)
     inputs = torch.rand((agent.batch_size,agent.n_agents,agent.input_shape))
+    print(inputs.shape)
     h_in = agent.fc1.weight.new(agent.batch_size,agent.n_agents, agent.rnn_hidden_dim).zero_()
     agent.forward(inputs,h_in)
     

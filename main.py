@@ -2,7 +2,8 @@ import argparse
 import random
 import numpy as np
 from gym_derk.envs import DerkEnv
-from agent import Agents
+#from agent import Agents
+from roma_agent import Agents
 from utils.environment_setting import CustomEnvironment
 
 def evaluate(env=None, n_episodes=1):
