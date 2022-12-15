@@ -1,14 +1,11 @@
 import torch
 from gym_derk.envs import DerkEnv
 from utils.prova_buffer import ReplayBuffer
-from networks.roma_net import RomaAgent
-from networks.qmix_net import Qmix_Net
 from Roma_brain import Agent_ROMA
+from Qmix_brain import Agent_RNN
 from Lzio_brain import Agent_Qmix
 import random
-from copy import deepcopy
 import numpy as np
-import torch.nn as nn
 
 import warnings
 
@@ -23,7 +20,7 @@ class Agents():
         self.agent_1 = Agent_ROMA(custom_env,team = 1)
         #agent 2 is trained by !roma = lzio
         #self.agent_2 = Agent_Qmix(custom_env,team = 2)
-        self.agent_2 = Agent_ROMA(custom_env,team = 2)
+        self.agent_2 = Agent_RNN(custom_env,team = 2)
 
         self.action_space = custom_env.action_space
         self.action_dict = self.action_space.actions
@@ -55,6 +52,8 @@ class Agents():
 
         # simulation
         self.total_rewards = [0,0]
+        self.update_loss_1 = []
+        self.update_loss_2 = []
 
 
 
@@ -149,7 +148,9 @@ class Agents():
                     print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
                     self.roll_in_episode("roma")
                 
-                self.agent_1.update(self.buffer,self.episode_limit)
+                loss = self.agent_1.update(self.buffer,self.episode_limit)
+                self.update_loss_1.append(loss)
+                print("\n - Loss: ",loss )
                 print(' - Epsilon:',self.agent_1.epsilon)
             print('\n--------------Training TEAM 2-----------------------')
             for ep in range(episodes):
@@ -158,13 +159,16 @@ class Agents():
                     print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
                     self.roll_in_episode("lazio")
                 
-                self.agent_2.update(self.buffer,self.episode_limit)
+                loss = self.agent_2.update(self.buffer,self.episode_limit)
+                self.update_loss_2.append(loss)
+                print("\n - Loss: ",loss )
                 print(' - Epsilon:',self.agent_2.epsilon)
             
             print('\n***************** SMACK DOWN *****************')
             self.evaluation()
             continue
         print("END training")
+
     
 
     def evaluation(self):
