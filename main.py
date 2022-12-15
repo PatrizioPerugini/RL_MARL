@@ -37,11 +37,8 @@ def evaluate(env=None, n_episodes=1):
 
 
 def train():
-    custom_envirment = CustomEnvironment()
+    custom_envirment = CustomEnvironment(training_mode=True)
     agent = Agents(custom_envirment)
-    #agent.roll_in_episode()
-
-    #TODO
     agent.train()
     pass
     
