@@ -102,10 +102,14 @@ class Agents():
 
 
         while (id<self.episode_limit and not done):
+            #there is no point in exploiting an untrained agent
+            #you would only unlearn
             if training_ag=='lazio':
-                e_exploit = [True,self.e_choice(self.agent_2)]
+                #e_exploit = [True,self.e_choice(self.agent_2)]
+                e_exploit = [self.e_choice(self.agent_1),self.e_choice(self.agent_2)]
             else:
-                e_exploit = [self.e_choice(self.agent_1),True]
+                #e_exploit = [self.e_choice(self.agent_1),True]
+                e_exploit = [self.e_choice(self.agent_1),self.e_choice(self.agent_2)]
 
             (o, a, s, r, o_next, s_next, d)= self.make_step( self.observation_n,self.last_action,e_exploit)
             done = d[0]
@@ -132,7 +136,7 @@ class Agents():
         #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=20,episodes=10):
+    def train(self,max_steps=20,episodes=1):
         
         print("START training")
         
@@ -157,8 +161,9 @@ class Agents():
                 self.agent_2.update(self.buffer,self.episode_limit)
                 print(' - Epsilon:',self.agent_1.epsilon)
             
-            #print('\n***************** SMACK DOWN *****************')
-            #self.evaluation()
+            print('\n***************** SMACK DOWN *****************')
+            self.evaluation()
+            continue
         print("END training")
     
 
@@ -166,7 +171,7 @@ class Agents():
         observation_n = np.array(self.observation_n)
         last_action = np.zeros((6,5))
         self.agent_1.reset_hidden_states(1)
-        self.agent_2.reset_hidden_states(1)
+        self.agent_2.reset_hidden_states()
         done = False
         rewards_1 =0
         rewards_2 =0
@@ -187,4 +192,5 @@ class Agents():
             done = done_n[0]
         print('TEAM 1 tot reward:',rewards_1)
         print('TEAM 2 tot reward:',rewards_2)
-            
+        self.observation_n=self.env.reset()
+        return 1

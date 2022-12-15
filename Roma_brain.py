@@ -13,7 +13,7 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-#home team ... roma
+#home team ... r
 class Agent_ROMA():
 
     def __init__(self,custom_env,team):#,replay_buffer):
