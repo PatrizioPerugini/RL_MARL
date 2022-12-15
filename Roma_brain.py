@@ -54,11 +54,11 @@ class Agent_ROMA():
         #self.tot_episodes = 500
         #self.max_steps_per_episode = 1000
         self.cnt_update=0
-        self.update_freq=10
+        self.update_freq=5
         self.gamma=0.99
         self.learning_rate=0.00025
         self.epsilon=0.9
-        self.epsilon_decay=0.999
+        self.epsilon_decay=0.95
         self.epsilon_treshold=0.07
    
         self.reset_hidden_states(self.batch_size)
@@ -155,7 +155,7 @@ class Agent_ROMA():
 
     def update(self,buffer,episode_limit=150):
         self.reset_hidden_states(self.batch_size)
-        self.load()
+        #self.load()
         #batch = buffer.sample(self.batch_size)
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
@@ -250,8 +250,8 @@ class Agent_ROMA():
    
     
     def save(self):
-        torch.save(self.qmix.state_dict(),  "model_qmix" +"_"+ str(self.team)+".pt")
-        torch.save(self.ROMA_agent.state_dict(),  "model_ROMA_agent" +"_"+ str(self.team)+".pt")
+        torch.save(self.qmix.state_dict(),  "models/model_qmix" +"_"+ str(self.team)+".pt")
+        torch.save(self.ROMA_agent.state_dict(),  "models/model_ROMA_agent" +"_"+ str(self.team)+".pt")
 
     
     def load(self):

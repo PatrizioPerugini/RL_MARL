@@ -22,8 +22,8 @@ class Agents():
         #agent 1 is trained by roma
         self.agent_1 = Agent_ROMA(custom_env,team = 1)
         #agent 2 is trained by !roma = lzio
-        self.agent_2 = Agent_Qmix(custom_env,team = 2)
-        #self.agent_2 = Agent_ROMA(custom_env,team = 2)
+        #self.agent_2 = Agent_Qmix(custom_env,team = 2)
+        self.agent_2 = Agent_ROMA(custom_env,team = 2)
 
         self.action_space = custom_env.action_space
         self.action_dict = self.action_space.actions
@@ -39,7 +39,7 @@ class Agents():
         self.training_epochs=50
 
         #buffer 
-        self.episode_limit = 50
+        self.episode_limit = 60
         self.buffer_size = 5000
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
@@ -136,7 +136,7 @@ class Agents():
         #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=20,episodes=1):
+    def train(self,max_steps=20,episodes=10):
         
         print("START training")
         
@@ -159,7 +159,7 @@ class Agents():
                     self.roll_in_episode("lazio")
                 
                 self.agent_2.update(self.buffer,self.episode_limit)
-                print(' - Epsilon:',self.agent_1.epsilon)
+                print(' - Epsilon:',self.agent_2.epsilon)
             
             print('\n***************** SMACK DOWN *****************')
             self.evaluation()
@@ -171,7 +171,9 @@ class Agents():
         observation_n = np.array(self.observation_n)
         last_action = np.zeros((6,5))
         self.agent_1.reset_hidden_states(1)
-        self.agent_2.reset_hidden_states()
+        #self.agent_2.reset_hidden_states() -> for rnnagent
+        self.agent_2.reset_hidden_states(1)
+
         done = False
         rewards_1 =0
         rewards_2 =0
