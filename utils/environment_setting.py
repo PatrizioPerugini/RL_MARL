@@ -4,7 +4,7 @@ import numpy as np
 
 
 class CustomEnvironment():
-    def __init__(self,dx=0.5,dr=0.2):
+    def __init__(self,dx=0.5,dr=0.2,training_mode =False):
         self.ht_primary_col = '#FF0000' #red    
         self.ht_secondary_col = '#FFA500' #orange
         self.at_primary_col = '#ADD8E6' #light blue
@@ -16,14 +16,22 @@ class CustomEnvironment():
         self.tails = ['VampireGland','ParalyzingDart']
         self.healing_tail = ['HealingGland']
 
+        if training_mode:
+            self.home_team_conf =  self.team_conf_4_training('home')
+            self.away_team_conf = self.team_conf_4_training('away')
+        else:
+            self.home_team_conf = self.team_conf_4_evaluation('home')
+            self.away_team_conf = self.team_conf_4_evaluation('away')
+
         self.env = DerkEnv( turbo_mode=True,
-                home_team = self.get_team_conf('home'),
-                away_team=self.get_team_conf('away'))
+                home_team = self.home_team_conf,
+                away_team = self.away_team_conf)
         
         self.action_space = Discrete_actions_space(dx,dr)
+        
 
 
-    def get_team_conf(self,team):
+    def team_conf_4_evaluation(self,team):
         player_1_slots = [
             random.sample(self.arms,1)[0],
             random.sample(self.miscs,1)[0],
@@ -50,17 +58,62 @@ class CustomEnvironment():
             {'primaryColor': primary_color,
              'secondaryColor':secondary_color,
              'slots':player_1_slots,
-             'backSpikes': 1},
+             'rewardFunction':  { 'damageEnemyUnit': 0.1 ,
+                                 'damageEnemyStatue': 0.2 ,
+                                 'friendlyFire': -0.1,
+                                 'killEnemyStatue': 4,
+                                 'killEnemyUnit': 1}
+            },
             {'primaryColor': primary_color,
              'secondaryColor':secondary_color,
              'slots':healer_player_slots,
-             'backSpikes':2},
+             'rewardFunction':  { 'healTeammate1': 0.1 ,
+                                 'healTeammate2': 0.1 ,
+                                 'healFriendlyStatue': 0.2 ,
+                                 'healEnemy': -0.1 ,
+                                 'friendlyFire': -0.1,
+                                 'killEnemyStatue': 4,
+                                 'killEnemyUnit': 1}
+            },
             {'primaryColor': primary_color,
              'secondaryColor':secondary_color,
              'slots':player_2_slots,
-             'backSpikes':3}]
+             'backSpikes':3,
+             'rewardFunction':  { 'damageEnemyUnit': 0.1 ,
+                                 'damageEnemyStatue': 0.2 ,
+                                 'friendlyFire': -0.1,
+                                 'killEnemyStatue': 4,
+                                 'killEnemyUnit': 1}
+            }]
+            
         return team_conf
     
+    def team_conf_4_training(self,team):
+        if team == 'home':
+            primary_color = self.ht_primary_col
+            secondary_color = self.ht_secondary_col
+        else:
+            primary_color = self.at_primary_col
+            secondary_color = self.at_secondary_col
+        generic_player = {'primaryColor': primary_color,
+                        'secondaryColor':secondary_color,
+                        'rewardFunction': 
+                        {'damageEnemyUnit': 0.1 ,
+                        'damageEnemyStatue': 0.2 ,
+                        'healTeammate1': 0.1 ,
+                        'healTeammate2': 0.1 ,
+                        'healFriendlyStatue': 0.2 ,
+                        'healEnemy': -0.1 ,
+                        'friendlyFire': -0.1,
+                        'killEnemyStatue': 4,
+                        'killEnemyUnit': 1}}
+        
+        team_conf = [generic_player,generic_player,generic_player]
+
+        return team_conf
+
+    def reset(self):
+        self.env.reset()
 
 
 class Discrete_actions_space():#DerkEnv.action_space):

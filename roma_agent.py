@@ -228,7 +228,7 @@ class Agent_ROMA():
         TD_loss = self.loss_function(q_tot.detach(), target_qtot)
        
         loss += TD_loss 
-        print("TEAM", self.team,"loss is: ",loss.item())
+        print("\n - Loss: ",loss.item())
         
         loss.backward()
         self.optimizer.step()
@@ -315,7 +315,7 @@ class Agents():
         action_2_id = self.agent_2.act(input_rnn,exploit[1])
         action_n_id = action_1_id + action_2_id
         action_to_do = [ self.action_dict[idx] for idx in action_n_id]
-        
+
         observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
@@ -381,19 +381,54 @@ class Agents():
         print("START training")
         
         for epochs in range(self.training_epochs):
-            print("EPOCH: ",epochs)
-            print('--------------Training TEAM 1-----------------------')
+            print("\nEPOCH: ",epochs)
+            print('\n--------------Training TEAM 1-----------------------')
             for ep in range(episodes):
-                print("\rRolling in episode {:d}".format(ep),end="")
+                print("\nEpisode:",ep,"  (T1)")
                 for r_i in range(max_steps):
+                    print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
                     self.roll_in_episode("roma")
+                
                 self.agent_1.update(self.buffer,self.episode_limit)
-            print('--------------Training TEAM 2-----------------------')
+                print(' - Epsilon:',self.agent_1.epsilon)
+            print('\n--------------Training TEAM 2-----------------------')
             for ep in range(episodes):
-                print("\rRolling in episode {:d}".format(ep),end="")
-                for _ in range(max_steps):
+                print("\nEpisode:",ep,"  (T2)")
+                for f_i in range(max_steps):
+                    print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
                     self.roll_in_episode("lazio")
+                
                 self.agent_2.update(self.buffer,self.episode_limit)
-  
+                print(' - Epsilon:',self.agent_1.epsilon)
+            
+            print('\n************** SMACK DOWN **************************')
+            self.evaluation()
         print("END training")
+    
 
+    def evaluation(self):
+        observation_n = np.array(self.observation_n)
+        last_action = np.zeros((6,5))
+        self.agent_1.reset_hidden_states(1)
+        self.agent_2.reset_hidden_states(1)
+        done = False
+        rewards_1 =0
+        rewards_2 =0
+
+        while not done:
+            input_rnn = np.hstack((observation_n.astype('float32'),last_action.astype('float32')))
+            
+            action_1_id = self.agent_1.act(input_rnn,True)
+            action_2_id = self.agent_2.act(input_rnn,True)
+            action_n_id = action_1_id + action_2_id
+           
+            action_to_do = [ self.action_dict[idx] for idx in action_n_id]
+            observation_n, reward_n, done_n, _ = self.env.step(action_to_do)
+            #observation_n, reward_n, done_n, _ = self.env.step(action_to_do)
+            self.last_action =action_to_do
+            rewards_1 += reward_n[0:3]
+            rewards_2 += reward_n[3:6]
+            done = done_n[0]
+        print('TEAM 1 tot reward:',rewards_1)
+        print('TEAM 2 tot reward:',rewards_2)
+            
