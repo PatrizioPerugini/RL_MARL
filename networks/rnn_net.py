@@ -13,48 +13,48 @@ sarà passata la volta successiva
 '''
 
 class RNNAgent(nn.Module):
-    def __init__(self, input_shape, rnn_hidden_dim, num_actions):
+    def __init__(self,n_agents,n_actions, input_shape, rnn_hidden_dim,batch_size ):
         super(RNNAgent, self).__init__()
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         #self.device="cpu"
         self.input_shape = input_shape
-        self.num_actions = num_actions
+        self.n_actions = n_actions
+        self.n_agents = n_agents
         self.rnn_hidden_dim=rnn_hidden_dim
-        #the output dim of this layer should match the dimension of the hidden state
-        self.fc1 = nn.Linear(input_shape,  self.rnn_hidden_dim) 
-        #process the new input-trajectory pair
-        self.rnn = nn.GRUCell( self.rnn_hidden_dim, self.rnn_hidden_dim)
-        #finally compute the new q 
-        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.num_actions) #there are 5 actions
-        self.hidden_state = self.init_hidden()
-        
+        self.batch_size = batch_size
+        self.GRU_num_layers=1
 
-    def init_hidden(self,batch_size=1):
-        # make hidden states on same device as model
+        self.fc1 = nn.Linear(self.input_shape,  self.rnn_hidden_dim) 
+
+        self.rnn = nn.GRU( self.rnn_hidden_dim, self.rnn_hidden_dim,
+                        num_layers=self.GRU_num_layers,batch_first=True)
+
+        self.fc2 = nn.Linear( self.rnn_hidden_dim, self.n_actions) 
+        self.hidden_state = self.fc1.weight.new(self.batch_size,self.n_agents, self.rnn_hidden_dim).zero_().to(self.device)
+
         
-        return self.fc1.weight.new(batch_size, self.rnn_hidden_dim).zero_().to(self.device)
 
     def forward(self, inputs, hidden_state):
+        
+        inputs = inputs.reshape(-1,self.input_shape)
+        h_in = hidden_state.reshape(self.GRU_num_layers,-1, self.rnn_hidden_dim).to(self.device)
+
         x = F.relu(self.fc1(inputs))
-        hidden_state.to(self.device)
-        h_in = hidden_state.reshape(-1, self.rnn_hidden_dim)
-        #update gate and reset gate need these informations to be computed, the output coincide 
-        #with the new hidden state which will be fed to the last layer to produes the 
-        #actual q function
         
-        h = self.rnn(x, h_in)  
-        q = self.fc2(h)
-        #q function (take the argmax) + new hidden state (will be given as input for the next GRU)
-        #in the paper q is actually Q(traj,action) once the epsilon-greedy is done
+        x = x.unsqueeze(1)
         
-        return q.to(self.device), h.to(self.device) #I thin q shoud be some vector like  [action]
+        y,h_out = self.rnn(x, h_in)  
+        q = self.fc2(h_out)
+        
+        
+        return q.view(-1,self.n_agents, self.n_actions),\
+               h_out.view(-1,self.n_agents,self.rnn_hidden_dim) #I thin q shoud be some vector like  [action]
     
-    def greedy_action_id(self,inputs):
-        self.hidden_state.to(self.device)
-        qvals, h = self.forward(inputs,self.hidden_state)
-        self.hidden_state = h
-        action_idx = torch.argmax(qvals).item()
-        return action_idx, self.hidden_state
+    def greedy_action_id(self,inputs,hs):
+        hs.to(self.device)
+        qvals, h= self.forward(inputs,hs)
+        action_idx = torch.argmax(qvals,dim=-1)
+        return action_idx, h
     
     def to(self, device):
         ret = super().to(device)
@@ -63,9 +63,16 @@ class RNNAgent(nn.Module):
 
 
 if __name__ == '__main__':
-    random_val = torch.rand((1,69)) 
-    print(random_val.dtype)
-    rna = RNNAgent(input_shape=69,rnn_hidden_dim=32,num_actions=1152)
-    h_in = rna.init_hidden() 
-    q,_ = rna.forward(random_val,h_in)
-    print(q.shape) #(1,1152)
+    
+    agent = RNNAgent(input_shape=64+5,n_agents=3,n_actions=16,rnn_hidden_dim=32,
+                        batch_size=2)
+    inputs = torch.rand((agent.batch_size,agent.n_agents,agent.input_shape))
+    
+    h_in = agent.fc1.weight.new(agent.batch_size,agent.n_agents, agent.rnn_hidden_dim).zero_()
+    q,h = agent.forward(inputs,h_in)
+
+    print('q',q.shape)
+    print('h',h.shape)
+    
+    print('daje brah')
+

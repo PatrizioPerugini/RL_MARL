@@ -229,7 +229,7 @@ class Agent_ROMA():
         TD_loss = self.loss_function(q_tot.detach(), target_qtot)
        
         loss += TD_loss 
-        print("\n - Loss: ",loss.item())
+        
         
         loss.backward()
         self.optimizer.step()
@@ -241,6 +241,8 @@ class Agent_ROMA():
         self.cnt_update+=1
         if self.epsilon>self.epsilon_treshold:
             self.epsilon*=self.epsilon_decay
+
+        return loss.item()
 
     
     def to(self, device):

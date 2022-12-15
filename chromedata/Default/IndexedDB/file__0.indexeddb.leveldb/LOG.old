@@ -1,3 +1,3 @@
-2022/12/15-15:15:00.582 88bf Reusing MANIFEST /home/patrizio/Desktop/RL_MARL/chromedata/Default/IndexedDB/file__0.indexeddb.leveldb/MANIFEST-000001
-2022/12/15-15:15:00.582 88bf Recovering log #3
-2022/12/15-15:15:00.604 88bf Reusing old log /home/patrizio/Desktop/RL_MARL/chromedata/Default/IndexedDB/file__0.indexeddb.leveldb/000003.log 
+2022/12/15-19:01:29.730 2210 Reusing MANIFEST /home/adriano/Desktop/Reinforcement_Learning/project_RL/RL_MARL/chromedata/Default/IndexedDB/file__0.indexeddb.leveldb/MANIFEST-000001
+2022/12/15-19:01:29.730 2210 Recovering log #3
+2022/12/15-19:01:29.747 2210 Reusing old log /home/adriano/Desktop/Reinforcement_Learning/project_RL/RL_MARL/chromedata/Default/IndexedDB/file__0.indexeddb.leveldb/000003.log 
