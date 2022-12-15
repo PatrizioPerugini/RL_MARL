@@ -154,7 +154,7 @@ class Agent_ROMA():
 
     def update(self,buffer,episode_limit=150):
         self.reset_hidden_states(self.batch_size)
-        #self.load()
+        self.load()
         #batch = buffer.sample(self.batch_size)
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
@@ -401,8 +401,8 @@ class Agents():
                 self.agent_2.update(self.buffer,self.episode_limit)
                 print(' - Epsilon:',self.agent_1.epsilon)
             
-            print('\n************** SMACK DOWN **************************')
-            self.evaluation()
+            #print('\n***************** SMACK DOWN *****************')
+            #self.evaluation()
         print("END training")
     
 

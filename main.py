@@ -3,7 +3,12 @@ import random
 import numpy as np
 from gym_derk.envs import DerkEnv
 #from agent import Agents
-from roma_agent import Agents
+
+#USE THIS TO TRAIN 2 ROMA AGENTS
+#from roma_agent import Agents
+
+from agents_brain import Agents
+
 from utils.environment_setting import CustomEnvironment
 
 def evaluate(env=None, n_episodes=1):
@@ -40,7 +45,7 @@ def train():
     custom_envirment = CustomEnvironment(training_mode=True)
     agent = Agents(custom_envirment)
     agent.train()
-    pass
+    
     
 
 def main():
