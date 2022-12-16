@@ -25,7 +25,8 @@ class CustomEnvironment():
 
         self.env = DerkEnv( turbo_mode=True,
                 home_team = self.home_team_conf,
-                away_team = self.away_team_conf)
+                away_team = self.away_team_conf,
+                mode='connected')
         
         self.action_space = Discrete_actions_space(dx,dr)
         

@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 #home team ... r
 class Agent_ROMA():
 
-    def __init__(self,custom_env,team):#,replay_buffer):
+    def __init__(self,custom_env,team,batch_size):#,replay_buffer):
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         #self.device = torch.device("cpu")
@@ -29,7 +29,7 @@ class Agent_ROMA():
         self.n_actions = self.action_space.count
         self.state_shape = self.env.observation_space.shape[0]
         self.action_dict = self.action_space.actions
-        self.batch_size = 32
+        self.batch_size = batch_size
 
         self.input_shape = self.state_shape + self.action_space.action_len
         self.rnn_hidden_dim = 32

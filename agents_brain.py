@@ -19,15 +19,7 @@ class Agents():
         self.env = custom_env.env
         #agent 1 is trained by roma
         self.match = ['roma','roma']      
-        if self.match[0] == 'roma':
-            self.agent_1 = Agent_ROMA(custom_env,team = 1)
-        else:
-            self.agent_1 = Agent_RNN(custom_env,team = 1)
-
-        if self.match[1] == 'roma':
-            self.agent_2 = Agent_ROMA(custom_env,team = 2)
-        else:
-            self.agent_2 = Agent_RNN(custom_env,team = 2)
+        
         
         #agent 2 is trained by !roma = lzio
         #self.agent_2 = Agent_Qmix(custom_env,team = 2)
@@ -46,8 +38,9 @@ class Agents():
         self.training_epochs=20
 
         #buffer 
-        self.episode_limit = 60
-        self.buffer_size = 20000
+        self.episode_limit = 150
+        self.buffer_size = 5000
+        self.batch_size = 16
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
         self.episode_batch = {'o': np.zeros([self.episode_limit, self.n_agents, self.obs_shape]),
@@ -59,6 +52,17 @@ class Agents():
                         'terminated': np.zeros([self.episode_limit, 1]),
                         'episode_len': 0
                         }
+
+        #agent instantiation
+        if self.match[0] == 'roma':
+            self.agent_1 = Agent_ROMA(custom_env,1, self.batch_size)
+        else:
+            self.agent_1 = Agent_RNN(custom_env,1, self.batch_size)
+
+        if self.match[1] == 'roma':
+            self.agent_2 = Agent_ROMA(custom_env,2, self.batch_size)
+        else:
+            self.agent_2 = Agent_RNN(custom_env,2, self.batch_size)
 
         # simulation
         self.total_rewards = [0,0]
@@ -153,6 +157,12 @@ class Agents():
         print('\nRoma as:',self.match[0])
         print('  Vs')
         print('Lazio as:',self.match[1])
+
+        for r_i in range(self.batch_size/2):
+            self.roll_in_episode("roma")
+        for r_i in range(self.batch_size/2):
+            self.roll_in_episode("lazio")
+
         
         for epochs in range(self.training_epochs):
             print("\nEPOCH: ",epochs)
