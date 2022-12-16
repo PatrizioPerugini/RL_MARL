@@ -42,7 +42,7 @@ class ReplayBuffer:
         #with self.lock:
         #_ = self._get_storage_idx(inc=batch_size)
         
-        idxs = self.current_idx % self.size
+        idxs = (self.current_idx+episode_batch) % self.size
 
         # store the informations
         self.buffers['o'][idxs] = episode_batch['o']
