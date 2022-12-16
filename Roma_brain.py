@@ -58,7 +58,7 @@ class Agent_ROMA():
         self.gamma=0.99
         self.learning_rate=0.00025
         self.epsilon=0.9
-        self.epsilon_decay=0.95
+        self.epsilon_decay=0.999
         self.epsilon_treshold=0.07
    
         self.reset_hidden_states(self.batch_size)
@@ -155,7 +155,7 @@ class Agent_ROMA():
 
     def update(self,buffer,episode_limit=150):
         self.reset_hidden_states(self.batch_size)
-        #self.load()
+        #self.load('models_RVsR')
         #batch = buffer.sample(self.batch_size)
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
@@ -234,7 +234,7 @@ class Agent_ROMA():
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
-        self.save()
+        self.save('models_RVsR')
         if self.cnt_update%self.update_freq==0:
 
             self.update_target_q_net()
@@ -251,14 +251,14 @@ class Agent_ROMA():
         return ret
    
     
-    def save(self):
-        torch.save(self.qmix.state_dict(),  "models/model_qmix" +"_"+ str(self.team)+".pt")
-        torch.save(self.ROMA_agent.state_dict(),  "models/model_ROMA_agent" +"_"+ str(self.team)+".pt")
+    def save(self,where):
+        torch.save(self.qmix.state_dict(),  where+"/model_qmix" +"_"+ str(self.team)+".pt")
+        torch.save(self.ROMA_agent.state_dict(),  where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt")
 
     
-    def load(self):
-        self.qmix.load_state_dict(torch.load("model_qmix" +"_"+ str(self.team)+".pt", map_location=self.device))
-        self.ROMA_agent.load_state_dict(torch.load("model_ROMA_agent" +"_"+ str(self.team)+".pt", map_location=self.device))
+    def load(self,where):
+        self.qmix.load_state_dict(torch.load(where+"/model_qmix" +"_"+ str(self.team)+".pt", map_location=self.device))
+        self.ROMA_agent.load_state_dict(torch.load(where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt", map_location=self.device))
     
     def update_target_q_net(self):
         self.target_qmix.load_state_dict(self.qmix.state_dict())

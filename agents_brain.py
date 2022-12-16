@@ -3,7 +3,6 @@ from gym_derk.envs import DerkEnv
 from utils.prova_buffer import ReplayBuffer
 from Roma_brain import Agent_ROMA
 from Qmix_brain import Agent_RNN
-from Lzio_brain import Agent_Qmix
 import random
 import numpy as np
 
@@ -17,10 +16,19 @@ class Agents():
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.env = custom_env.env
         #agent 1 is trained by roma
-        self.agent_1 = Agent_ROMA(custom_env,team = 1)
+        self.match = ['roma','roma']      
+        if self.match[0] == 'roma':
+            self.agent_1 = Agent_ROMA(custom_env,team = 1)
+        else:
+            self.agent_1 = Agent_RNN(custom_env,team = 1)
+
+        if self.match[1] == 'roma':
+            self.agent_2 = Agent_ROMA(custom_env,team = 2)
+        else:
+            self.agent_2 = Agent_RNN(custom_env,team = 2)
+        
         #agent 2 is trained by !roma = lzio
         #self.agent_2 = Agent_Qmix(custom_env,team = 2)
-        self.agent_2 = Agent_RNN(custom_env,team = 2)
 
         self.action_space = custom_env.action_space
         self.action_dict = self.action_space.actions
@@ -33,11 +41,11 @@ class Agents():
         # global vars
         self.observation_n = self.env.reset()
         self.epsilon=0.9
-        self.training_epochs=50
+        self.training_epochs=20
 
         #buffer 
         self.episode_limit = 60
-        self.buffer_size = 5000
+        self.buffer_size = 20000
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
         self.episode_batch = {'o': np.zeros([self.episode_limit, self.n_agents, self.obs_shape]),
@@ -136,36 +144,41 @@ class Agents():
     
     #max_steps must be greater then bs
     def train(self,max_steps=20,episodes=10):
-        
+
         print("START training")
+
+        print('\nRoma as:',self.match[0])
+        print('        Vs         ')
+        print('Lazio as:',self.match[1])
         
         for epochs in range(self.training_epochs):
             print("\nEPOCH: ",epochs)
-            print('\n--------------Training TEAM 1-----------------------')
+            print('--------------Training TEAM 1-----------------------')
             for ep in range(episodes):
                 print("\nEpisode:",ep,"  (T1)")
                 for r_i in range(max_steps):
-                    print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
+                    #print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
                     self.roll_in_episode("roma")
                 
                 loss = self.agent_1.update(self.buffer,self.episode_limit)
                 self.update_loss_1.append(loss)
-                print("\n - Loss: ",loss )
+                print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_1.epsilon)
-            print('\n--------------Training TEAM 2-----------------------')
+            print('--------------Training TEAM 2-----------------------')
             for ep in range(episodes):
                 print("\nEpisode:",ep,"  (T2)")
                 for f_i in range(max_steps):
-                    print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
+                    #print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
                     self.roll_in_episode("lazio")
                 
                 loss = self.agent_2.update(self.buffer,self.episode_limit)
                 self.update_loss_2.append(loss)
-                print("\n - Loss: ",loss )
+                print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_2.epsilon)
             
             print('\n***************** SMACK DOWN *****************')
             self.evaluation()
+            print('-------------------------------------------------------')
             continue
         print("END training")
 
