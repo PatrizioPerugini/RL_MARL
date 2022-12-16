@@ -1,6 +1,6 @@
 import torch
 from gym_derk.envs import DerkEnv
-from utils.prova_buffer import ReplayBuffer
+from utils.reply_buffer import ReplayBuffer
 from networks.rnn_net import RNNAgent   
 from networks.qmix_net import Qmix_Net
 
@@ -56,7 +56,7 @@ class Agent_RNN():
         self.update_freq=5
         self.gamma=0.99
         self.learning_rate=0.00025
-        self.epsilon=0.9
+        self.epsilon=0.85
         self.epsilon_decay=0.999
         self.epsilon_treshold=0.07
    
@@ -154,7 +154,7 @@ class Agent_RNN():
 
     def update(self,buffer,episode_limit=150):
         self.reset_hidden_states(self.batch_size)
-        #self.load('models_RVsR')
+        self.load('models_RVsR')
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
         #(bs,traj,6,64)

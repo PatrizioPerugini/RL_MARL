@@ -1,10 +1,12 @@
 import torch
 from gym_derk.envs import DerkEnv
-from utils.prova_buffer import ReplayBuffer
+from utils.reply_buffer import ReplayBuffer
 from Roma_brain import Agent_ROMA
 from Qmix_brain import Agent_RNN
 import random
 import numpy as np
+from matplotlib import pyplot 
+import time
 
 import warnings
 
@@ -144,18 +146,19 @@ class Agents():
     
     #max_steps must be greater then bs
     def train(self,max_steps=20,episodes=10):
-
+        start = time.time()
+        end_old = start
         print("START training")
 
         print('\nRoma as:',self.match[0])
-        print('        Vs         ')
+        print('  Vs')
         print('Lazio as:',self.match[1])
         
         for epochs in range(self.training_epochs):
             print("\nEPOCH: ",epochs)
-            print('--------------Training TEAM 1-----------------------')
+            print('---------------------------------------------')
             for ep in range(episodes):
-                print("\nEpisode:",ep,"  (T1)")
+                print("Episode:",epochs,'.',ep,"  (T1)")
                 for r_i in range(max_steps):
                     #print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
                     self.roll_in_episode("roma")
@@ -164,9 +167,8 @@ class Agents():
                 self.update_loss_1.append(loss)
                 print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_1.epsilon)
-            print('--------------Training TEAM 2-----------------------')
             for ep in range(episodes):
-                print("\nEpisode:",ep,"  (T2)")
+                print("Episode:",epochs,'.',ep,"  (T2)")
                 for f_i in range(max_steps):
                     #print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
                     self.roll_in_episode("lazio")
@@ -175,12 +177,22 @@ class Agents():
                 self.update_loss_2.append(loss)
                 print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_2.epsilon)
+            end = time.time()
+            duration = end-end_old
             
-            print('\n***************** SMACK DOWN *****************')
+            print('Epoch duration:',duration)
+            end_old = end
+            print('***************** SMACK DOWN *****************')
             self.evaluation()
-            print('-------------------------------------------------------')
+            print('**********************************************')
+
             continue
+
         print("END training")
+        duration = time.time() - start
+        print('Total duration:',duration)
+        pyplot.plot(self.update_loss_1)
+        pyplot.plot(self.update_loss_2)
 
     
 
@@ -209,7 +221,16 @@ class Agents():
             rewards_1 += reward_n[0:3]
             rewards_2 += reward_n[3:6]
             done = done_n[0]
-        print('TEAM 1 tot reward:',rewards_1)
-        print('TEAM 2 tot reward:',rewards_2)
+        self.print_stats()
         self.observation_n=self.env.reset()
         return 1
+
+    def print_stats(self):
+        for i in [0,1]:
+            print('TEAM',i)
+            print(' - Reward:',self.env.team_stats[i,0])
+            print(' - Hitpoints:',self.env.team_stats[i,2])
+            print(' - AliveTime:',self.env.team_stats[i,3])
+            print(' - CumulativeHitpoints:',self.env.team_stats[i,4])
+
+

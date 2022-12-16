@@ -1,6 +1,6 @@
 import torch
 from gym_derk.envs import DerkEnv
-from utils.prova_buffer import ReplayBuffer
+from utils.reply_buffer import ReplayBuffer
 from networks.roma_net import RomaAgent
 from networks.qmix_net import Qmix_Net
 

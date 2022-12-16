@@ -98,15 +98,15 @@ class CustomEnvironment():
         generic_player = {'primaryColor': primary_color,
                         'secondaryColor':secondary_color,
                         'rewardFunction': 
-                        {'damageEnemyUnit': 0.1 ,
-                        'damageEnemyStatue': 0.2 ,
-                        'healTeammate1': 0.1 ,
-                        'healTeammate2': 0.1 ,
-                        'healFriendlyStatue': 0.2 ,
-                        'healEnemy': -0.1 ,
-                        'friendlyFire': -0.1,
-                        'killEnemyStatue': 4,
-                        'killEnemyUnit': 1}}
+                        {'damageEnemyUnit': 1 ,
+                        'damageEnemyStatue': 2 ,
+                        'healTeammate1': 1 ,
+                        'healTeammate2': 1 ,
+                        'healFriendlyStatue': 2 ,
+                        'healEnemy': -5 ,
+                        'friendlyFire': -5,
+                        'killEnemyStatue': 40,
+                        'killEnemyUnit': 10}}
         
         team_conf = [generic_player,generic_player,generic_player]
 
