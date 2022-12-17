@@ -25,8 +25,7 @@ class CustomEnvironment():
 
         self.env = DerkEnv( turbo_mode=True,
                 home_team = self.home_team_conf,
-                away_team = self.away_team_conf,
-                mode='connected')
+                away_team = self.away_team_conf)
         
         self.action_space = Discrete_actions_space(dx,dr)
         
@@ -96,6 +95,17 @@ class CustomEnvironment():
         else:
             primary_color = self.at_primary_col
             secondary_color = self.at_secondary_col
+
+        generic_rewards = {'damageEnemyUnit': 1 ,
+                        'damageEnemyStatue': 2 ,
+                        'healTeammate1': 1 ,
+                        'healTeammate2': 1 ,
+                        'healFriendlyStatue': 2 ,
+                        'healEnemy': -5 ,
+                        'friendlyFire': -5,
+                        'killEnemyStatue': 40,
+                        'killEnemyUnit': 10}
+        '''
         generic_player = {'primaryColor': primary_color,
                         'secondaryColor':secondary_color,
                         'rewardFunction': 
@@ -110,6 +120,46 @@ class CustomEnvironment():
                         'killEnemyUnit': 10}}
         
         team_conf = [generic_player,generic_player,generic_player]
+        '''
+
+        self.miscs = ['FrogLegs','IronBubblegum',
+                        'HeliumBubblegum','Shell','Trombone']
+        player_1_slots = [
+            'Talons',
+            'Blaster',
+            'Trombone'
+        ]
+        player_2_slots = [
+            'Cripplers',
+            'Magnum',
+            'Shell'
+        ]
+        healer_player_slots = [
+            'Pistol',
+            'BloodClaws',
+            'HealingGland'
+        ]
+
+        team_conf = [
+            {'primaryColor': primary_color,
+             'secondaryColor':secondary_color,
+             'slots':player_1_slots,
+             'rewardFunction':generic_rewards
+            },
+            {'primaryColor': primary_color,
+             'secondaryColor':secondary_color,
+             'slots':healer_player_slots,
+             'rewardFunction': generic_rewards
+            },
+            {'primaryColor': primary_color,
+             'secondaryColor':secondary_color,
+             'slots':player_2_slots,
+             'backSpikes':3,
+             'rewardFunction': generic_rewards
+            }]
+          
+
+
 
         return team_conf
 

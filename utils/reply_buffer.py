@@ -32,18 +32,21 @@ class ReplayBuffer:
                         'episode_len':np.empty([self.size])
                         }
 
-    
+    def get_capacity(self):
+        if self.current_idx<self.size:
+            return round(self.current_idx/self.size,2)
+        else:
+            return 1.0
         # thread lock
     #   self.lock = threading.Lock()
 
         # store the episode
     def store_episode(self, episode_batch):
-        batch_size = episode_batch['o'].shape[0] 
         #with self.lock:
         #_ = self._get_storage_idx(inc=batch_size)
         
-        idxs = (self.current_idx+episode_batch) % self.size
-
+        idxs = (self.current_idx) % self.size
+        
         # store the informations
         self.buffers['o'][idxs] = episode_batch['o']
         self.buffers['a'][idxs] = episode_batch['a']

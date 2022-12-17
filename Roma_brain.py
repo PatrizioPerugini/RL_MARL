@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 #home team ... r
 class Agent_ROMA():
 
-    def __init__(self,custom_env,team,batch_size):#,replay_buffer):
+    def __init__(self,custom_env,team,batch_size,vs):   #vs = RVsR or RVsQ or QvsQ
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         #self.device = torch.device("cpu")
@@ -48,8 +48,16 @@ class Agent_ROMA():
         self.Qmix_hidden_dim = 32
         self.qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim).to(self.device)
         self.target_qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim).to(self.device)
-  
-        
+
+        # save/load models stuff
+        if not(vs == 'RVsR' or vs == 'RVsQ' or vs=='QvsQ'):
+            raise Exception('Models not valid!')
+            
+        where = 'models_'+vs
+        self.models=[
+            where+"/model_qmix" +"_"+ str(self.team)+".pt",
+            where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt"
+        ]
         # Training stuff
         #self.tot_episodes = 500
         #self.max_steps_per_episode = 1000
@@ -57,9 +65,9 @@ class Agent_ROMA():
         self.update_freq=5
         self.gamma=0.99
         self.learning_rate=0.00025
-        self.epsilon=0.85
+        self.epsilon=0.70
         self.epsilon_decay=0.999
-        self.epsilon_treshold=0.07
+        self.epsilon_treshold=0.10
    
         self.reset_hidden_states(self.batch_size)
                 #optimize multiple net
@@ -155,7 +163,6 @@ class Agent_ROMA():
 
     def update(self,buffer,episode_limit=150):
         self.reset_hidden_states(self.batch_size)
-        self.load('models_RVsR')
         #batch = buffer.sample(self.batch_size)
         stack_batch_qvals=torch.zeros((self.batch_size,episode_limit,self.n_agents)).to(self.device)#*-9999#(1,episode_limit,agents))
         
@@ -234,7 +241,7 @@ class Agent_ROMA():
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
-        self.save('models_RVsR')
+        self.save()
         if self.cnt_update%self.update_freq==0:
 
             self.update_target_q_net()
@@ -251,14 +258,18 @@ class Agent_ROMA():
         return ret
    
     
-    def save(self,where):
-        torch.save(self.qmix.state_dict(),  where+"/model_qmix" +"_"+ str(self.team)+".pt")
-        torch.save(self.ROMA_agent.state_dict(),  where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt")
+    def save(self):
+        torch.save(self.qmix.state_dict(),self.models[0])
+        torch.save(self.ROMA_agent.state_dict(),self.models[1])
 
     
-    def load(self,where):
-        self.qmix.load_state_dict(torch.load(where+"/model_qmix" +"_"+ str(self.team)+".pt", map_location=self.device))
-        self.ROMA_agent.load_state_dict(torch.load(where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt", map_location=self.device))
+    def load(self):        #what = models to load
+        print('Team',self.team,'load models:')
+        print(' - ',self.models[0])
+        print(' - ',self.models[1])
+
+        self.qmix.load_state_dict(torch.load(self.models[0], map_location=self.device))
+        self.ROMA_agent.load_state_dict(torch.load(self.models[1], map_location=self.device))
     
     def update_target_q_net(self):
         self.target_qmix.load_state_dict(self.qmix.state_dict())

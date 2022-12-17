@@ -7,6 +7,7 @@ import random
 import numpy as np
 from matplotlib import pyplot 
 import time
+import datetime
 
 import warnings
 
@@ -14,15 +15,23 @@ warnings.filterwarnings('ignore')
 
 class Agents():
 
-    def __init__(self,custom_env):
+    def __init__(self,custom_env,vs):   #vs = RVsR or RVsQ or QvsQ
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.env = custom_env.env
         #agent 1 is trained by roma
-        self.match = ['roma','roma']      
         
-        
-        #agent 2 is trained by !roma = lzio
-        #self.agent_2 = Agent_Qmix(custom_env,team = 2)
+              
+
+        if not(vs == 'RVsR' or vs == 'RVsQ' or vs=='QvsQ'):
+            raise Exception('Models not valid!')
+
+        if vs == 'RVsR': 
+            self.match = ['roma','roma']
+        elif vs == 'RVsQ':
+            self.match = ['roma','qmix']
+        elif vs == 'QVsQ':
+            self.match = ['qmix','qmix']
+            
 
         self.action_space = custom_env.action_space
         self.action_dict = self.action_space.actions
@@ -34,12 +43,11 @@ class Agents():
 
         # global vars
         self.observation_n = self.env.reset()
-        self.epsilon=0.9
-        self.training_epochs=20
+        self.training_epochs=100
 
         #buffer 
-        self.episode_limit = 150
-        self.buffer_size = 5000
+        self.episode_limit = 151
+        self.buffer_size = 10000
         self.batch_size = 16
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
@@ -55,14 +63,14 @@ class Agents():
 
         #agent instantiation
         if self.match[0] == 'roma':
-            self.agent_1 = Agent_ROMA(custom_env,1, self.batch_size)
+            self.agent_1 = Agent_ROMA(custom_env,1, self.batch_size,vs)
         else:
-            self.agent_1 = Agent_RNN(custom_env,1, self.batch_size)
+            self.agent_1 = Agent_RNN(custom_env,1, self.batch_size,vs)
 
         if self.match[1] == 'roma':
-            self.agent_2 = Agent_ROMA(custom_env,2, self.batch_size)
+            self.agent_2 = Agent_ROMA(custom_env,2, self.batch_size,vs)
         else:
-            self.agent_2 = Agent_RNN(custom_env,2, self.batch_size)
+            self.agent_2 = Agent_RNN(custom_env,2, self.batch_size,vs)
 
         # simulation
         self.total_rewards = [0,0]
@@ -112,8 +120,6 @@ class Agents():
         
         #self.agent_2.reset_hidden_states(1)
         self.agent_2.reset_hidden_states()
-
-
         while (id<self.episode_limit and not done):
             #there is no point in exploiting an untrained agent
             #you would only unlearn
@@ -135,7 +141,6 @@ class Agents():
             self.episode_batch['s_next'][id] = s_next 
             self.episode_batch['terminated'][id] = d 
             self.episode_batch['episode_len'] = id
-
             
             id += 1
             #see if it is conveniente
@@ -149,18 +154,19 @@ class Agents():
         #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=20,episodes=10):
+    def train(self,max_steps=8,episodes=5):
         start = time.time()
         end_old = start
-        print("START training")
+        print("\nSTART training")
 
-        print('\nRoma as:',self.match[0])
-        print('  Vs')
-        print('Lazio as:',self.match[1])
+        print('\n     Roma as:',self.match[0])
+        print('          Vs')
+        print('     Lazio as:',self.match[1])
 
-        for r_i in range(self.batch_size/2):
+        print('\nFirst roll in some episodes ...')
+        for r_i in range(int(self.batch_size/2)):
             self.roll_in_episode("roma")
-        for r_i in range(self.batch_size/2):
+        for r_i in range(int(self.batch_size/2)):
             self.roll_in_episode("lazio")
 
         
@@ -168,7 +174,7 @@ class Agents():
             print("\nEPOCH: ",epochs)
             print('---------------------------------------------')
             for ep in range(episodes):
-                print("Episode:",epochs,'.',ep,"  (T1)")
+                print("T1 Episode:",epochs,'.',ep)
                 for r_i in range(max_steps):
                     #print("\r - Rolling in episode {:d}...".format(r_i+1),end="")
                     self.roll_in_episode("roma")
@@ -177,8 +183,9 @@ class Agents():
                 self.update_loss_1.append(loss)
                 print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_1.epsilon)
+                print(' - Buffer capacity:', self.buffer.get_capacity())
             for ep in range(episodes):
-                print("Episode:",epochs,'.',ep,"  (T2)")
+                print("T2 Episode:",epochs,'.',ep)
                 for f_i in range(max_steps):
                     #print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
                     self.roll_in_episode("lazio")
@@ -187,10 +194,13 @@ class Agents():
                 self.update_loss_2.append(loss)
                 print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_2.epsilon)
+                print(' - Buffer capacity:', self.buffer.get_capacity())
+
             end = time.time()
             duration = end-end_old
+
             
-            print('Epoch duration:',duration)
+            print('Epoch duration:',str(datetime.timedelta(seconds=duration)))
             end_old = end
             print('***************** SMACK DOWN *****************')
             self.evaluation()
@@ -200,7 +210,7 @@ class Agents():
 
         print("END training")
         duration = time.time() - start
-        print('Total duration:',duration)
+        print('Total training duration:',str(datetime.timedelta(seconds=duration)))
         pyplot.plot(self.update_loss_1)
         pyplot.plot(self.update_loss_2)
 
@@ -237,7 +247,7 @@ class Agents():
 
     def print_stats(self):
         for i in [0,1]:
-            print('TEAM',i)
+            print('TEAM',i+1)
             print(' - Reward:',self.env.team_stats[i,0])
             print(' - Hitpoints:',self.env.team_stats[i,2])
             print(' - AliveTime:',self.env.team_stats[i,3])
