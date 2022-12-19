@@ -65,7 +65,7 @@ class Agent_RNN():
         self.update_freq=5
         self.gamma=0.99
         self.learning_rate=0.0025
-        self.epsilon=0.9
+        self.epsilon=0.5 #0.9
         self.epsilon_decay=0.999
         self.epsilon_treshold=0.10
    
@@ -226,7 +226,7 @@ class Agent_RNN():
         loss.backward()
         self.optimizer.step()
         #self.update_loss.append(loss.item())
-        self.save()
+        #self.save()
         if self.cnt_update%self.update_freq==0:
             self.update_target_q_net()
 

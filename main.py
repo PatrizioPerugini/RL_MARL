@@ -27,9 +27,9 @@ def evaluate():
 
 def train():
     custom_envirment = CustomEnvironment(training_mode=True)
-    agent = Agents(custom_envirment,'QvsQ')
-    #agent.agent_1.load()
-    #agent.agent_2.load()
+    agent = Agents(custom_envirment,'RvsR')
+    agent.agent_1.load()
+    agent.agent_2.load()
     agent.train()
     
     

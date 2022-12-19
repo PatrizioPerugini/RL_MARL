@@ -22,8 +22,11 @@ class CustomEnvironment():
         else:
             self.home_team_conf = self.team_conf_4_evaluation('home')
             self.away_team_conf = self.team_conf_4_evaluation('away')
-
-        self.env = DerkEnv( turbo_mode=True,
+        if training_mode:
+            tb=False
+        else:
+            tb = False
+        self.env = DerkEnv( turbo_mode=tb,
                 home_team = self.home_team_conf,
                 away_team = self.away_team_conf)
         

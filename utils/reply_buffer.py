@@ -46,7 +46,6 @@ class ReplayBuffer:
         #_ = self._get_storage_idx(inc=batch_size)
         
         idxs = (self.current_idx) % self.size
-        
         # store the informations
         self.buffers['o'][idxs] = episode_batch['o']
         self.buffers['a'][idxs] = episode_batch['a']
@@ -60,7 +59,10 @@ class ReplayBuffer:
 
     def sample(self, batch_size):
         temp_buffer = {}
-        idx = np.random.randint(0, self.current_idx, batch_size)
+        to = self.current_idx%self.size
+        if to<batch_size:
+            to = batch_size
+        idx = np.random.randint(0,to, batch_size)
         for key in self.buffers.keys():
             temp_buffer[key] = self.buffers[key][idx]
         return temp_buffer

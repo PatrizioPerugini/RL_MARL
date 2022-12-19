@@ -59,11 +59,11 @@ class Agent_ROMA():
         #self.tot_episodes = 500
         #self.max_steps_per_episode = 1000
         self.cnt_update=0
-        self.update_freq=5
+        self.update_freq=3
         self.gamma=0.99
-        self.learning_rate=0.00025
-        self.epsilon=0.65
-        self.epsilon_decay=0.999
+        self.learning_rate=0.001#0.0025
+        self.epsilon=0.2
+        self.epsilon_decay=0.99
         self.epsilon_treshold=0.10
    
         self.reset_hidden_states(self.batch_size)
@@ -199,12 +199,14 @@ class Agent_ROMA():
         
 
         q_tot = self.qmix.forward(stack_batch_qvals,stack_batch_state).squeeze(-1)
-        
-        
+        print("stats for agente", self.team)
+        print("Q_TOT IS",q_tot)
         loss /= episode_limit
         d_loss /= episode_limit
         c_loss /= episode_limit
 
+        print("dissimilarity loss is", d_loss)
+        print("cross entropy loss is",c_loss)
         self.reset_hidden_states(batch_size = self.batch_size)
 
         for t in range(episode_limit): #trajectory len

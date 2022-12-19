@@ -51,7 +51,7 @@ class Agents():
 
         #buffer 
         self.episode_limit = 151
-        self.buffer_size = 10000
+        self.buffer_size = 500
         self.batch_size = 16
         self.buffer = ReplayBuffer(self.n_agents,(6, 64),(6, 64),self.buffer_size,self.episode_limit)
 
@@ -163,7 +163,7 @@ class Agents():
         #print('Batch saved in the buffer.')
     
     #max_steps must be greater then bs
-    def train(self,max_steps=8,episodes=5):
+    def train(self,max_steps=5,episodes=3):
         start = time.time()
         end_old = start
         print("\nSTART training")
