@@ -11,11 +11,15 @@ from agents_brain import Agents
 
 from utils.environment_setting import CustomEnvironment
 
-def evaluate(env=None, n_episodes=1):
+def evaluate():
     
     custom_envirment = CustomEnvironment(training_mode=False)
-    agent = Agents(custom_envirment,'RVsR')
-    
+    team1 = str(input('Initial of the first team (maiusc):'))
+    team2 = str(input('Initial of the second team (maiusc):'))
+    match = team1+'vs'+team2
+    agent = Agents(custom_envirment,match)
+    agent.agent_1.load()
+    agent.agent_2.load()
 
     agent.evaluation()
 
@@ -23,9 +27,9 @@ def evaluate(env=None, n_episodes=1):
 
 def train():
     custom_envirment = CustomEnvironment(training_mode=True)
-    agent = Agents(custom_envirment,'RVsR')
-    agent.agent_1.load()
-    agent.agent_2.load()
+    agent = Agents(custom_envirment,'QvsQ')
+    #agent.agent_1.load()
+    #agent.agent_2.load()
     agent.train()
     
     

@@ -55,7 +55,7 @@ class Agent_RNN():
         where = 'models_'+vs
         self.models=[
             where+"/model_qmix" +"_"+ str(self.team)+".pt",
-            where+"/model_ROMA_agent" +"_"+ str(self.team)+".pt"
+            where+"/model_RNN_agent" +"_"+ str(self.team)+".pt"
         ]
         
         # Training stuff
@@ -64,8 +64,8 @@ class Agent_RNN():
         self.cnt_update=0
         self.update_freq=5
         self.gamma=0.99
-        self.learning_rate=0.00025
-        self.epsilon=0.70
+        self.learning_rate=0.0025
+        self.epsilon=0.9
         self.epsilon_decay=0.999
         self.epsilon_treshold=0.10
    
@@ -253,8 +253,8 @@ class Agent_RNN():
         print('Team',self.team,'load models:')
         print(' - ',self.models[0])
         print(' - ',self.models[1])
-        self.qmix.load_state_dict(torch.load(self.models[0]), map_location=self.device)
-        self.RNN_agent.load_state_dict(torch.load(self.models[1]), map_location=self.device)
+        self.qmix.load_state_dict(torch.load(self.models[0], map_location=self.device))
+        self.RNN_agent.load_state_dict(torch.load(self.models[1], map_location=self.device))
     
     def update_target_q_net(self):
         self.target_qmix.load_state_dict(self.qmix.state_dict())

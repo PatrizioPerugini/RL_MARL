@@ -101,10 +101,10 @@ class CustomEnvironment():
                         'healTeammate1': 1 ,
                         'healTeammate2': 1 ,
                         'healFriendlyStatue': 2 ,
-                        'healEnemy': -5 ,
-                        'friendlyFire': -5,
-                        'killEnemyStatue': 40,
-                        'killEnemyUnit': 10}
+                        'healEnemy': -10 ,
+                        'friendlyFire': -10,
+                        'killEnemyStatue': 50,
+                        'killEnemyUnit': 20}
         '''
         generic_player = {'primaryColor': primary_color,
                         'secondaryColor':secondary_color,
@@ -122,8 +122,7 @@ class CustomEnvironment():
         team_conf = [generic_player,generic_player,generic_player]
         '''
 
-        self.miscs = ['FrogLegs','IronBubblegum',
-                        'HeliumBubblegum','Shell','Trombone']
+        
         player_1_slots = [
             'Talons',
             'Blaster',
@@ -148,13 +147,12 @@ class CustomEnvironment():
             },
             {'primaryColor': primary_color,
              'secondaryColor':secondary_color,
-             'slots':healer_player_slots,
+             'slots': player_2_slots,
              'rewardFunction': generic_rewards
             },
             {'primaryColor': primary_color,
              'secondaryColor':secondary_color,
-             'slots':player_2_slots,
-             'backSpikes':3,
+             'slots':healer_player_slots ,
              'rewardFunction': generic_rewards
             }]
           

@@ -15,22 +15,26 @@ warnings.filterwarnings('ignore')
 
 class Agents():
 
-    def __init__(self,custom_env,vs):   #vs = RVsR or RVsQ or QvsQ
+    def __init__(self,custom_env,vs):  
         self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.env = custom_env.env
         #agent 1 is trained by roma
         
               
-
-        if not(vs == 'RVsR' or vs == 'RVsQ' or vs=='QvsQ'):
+        if vs == 'RvsR': 
+            self.match = ['roma','roma']
+        elif vs == 'RvsQ':
+            self.match = ['roma','qmix']
+        elif vs == 'QvsQ':
+            self.match = ['qmix','qmix']
+        elif vs == 'RvsG':
+            self.match = ['roma','ghost']
+        elif vs == 'QvsG':
+            self.match = ['qmix','ghost']
+        else:
             raise Exception('Models not valid!')
 
-        if vs == 'RVsR': 
-            self.match = ['roma','roma']
-        elif vs == 'RVsQ':
-            self.match = ['roma','qmix']
-        elif vs == 'QVsQ':
-            self.match = ['qmix','qmix']
+        print(self.match)
             
 
         self.action_space = custom_env.action_space
@@ -62,6 +66,7 @@ class Agents():
                         }
 
         #agent instantiation
+        self.ghost = False
         if self.match[0] == 'roma':
             self.agent_1 = Agent_ROMA(custom_env,1, self.batch_size,vs)
         else:
@@ -69,8 +74,12 @@ class Agents():
 
         if self.match[1] == 'roma':
             self.agent_2 = Agent_ROMA(custom_env,2, self.batch_size,vs)
-        else:
+        elif self.match[1] == 'qmix':
             self.agent_2 = Agent_RNN(custom_env,2, self.batch_size,vs)
+        elif self.match[1] == 'ghost':
+            self.agent_2 = Ghost()
+            self.ghost = True
+
 
         # simulation
         self.total_rewards = [0,0]
@@ -90,7 +99,6 @@ class Agents():
         action_2_id = self.agent_2.act(input_rnn,exploit[1])
         action_n_id = action_1_id + action_2_id
         action_to_do = [ self.action_dict[idx] for idx in action_n_id]
-
         observation_n, reward_n, done_n, info = self.env.step(action_to_do)
         
         global_state = observation_n
@@ -119,7 +127,8 @@ class Agents():
         self.agent_1.reset_hidden_states(1)
         
         #self.agent_2.reset_hidden_states(1)
-        self.agent_2.reset_hidden_states()
+        if not self.ghost:
+            self.agent_2.reset_hidden_states()
         while (id<self.episode_limit and not done):
             #there is no point in exploiting an untrained agent
             #you would only unlearn
@@ -184,22 +193,23 @@ class Agents():
                 print(" - Loss: ",loss )
                 print(' - Epsilon:',self.agent_1.epsilon)
                 print(' - Buffer capacity:', self.buffer.get_capacity())
-            for ep in range(episodes):
-                print("T2 Episode:",epochs,'.',ep)
-                for f_i in range(max_steps):
-                    #print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
-                    self.roll_in_episode("lazio")
-                
-                loss = self.agent_2.update(self.buffer,self.episode_limit)
-                self.update_loss_2.append(loss)
-                print(" - Loss: ",loss )
-                print(' - Epsilon:',self.agent_2.epsilon)
-                print(' - Buffer capacity:', self.buffer.get_capacity())
+
+            if not self.ghost:
+                for ep in range(episodes):
+                    print("T2 Episode:",epochs,'.',ep)
+                    for f_i in range(max_steps):
+                        #print("\r - Rolling in episode {:d} ...".format(f_i+1),end="")
+                        self.roll_in_episode("lazio")
+                    
+                    loss = self.agent_2.update(self.buffer,self.episode_limit)
+                    self.update_loss_2.append(loss)
+                    print(" - Loss: ",loss )
+                    print(' - Epsilon:',self.agent_2.epsilon)
+                    print(' - Buffer capacity:', self.buffer.get_capacity())
 
             end = time.time()
             duration = end-end_old
 
-            
             print('Epoch duration:',str(datetime.timedelta(seconds=duration)))
             end_old = end
             print('***************** SMACK DOWN *****************')
@@ -214,14 +224,16 @@ class Agents():
         pyplot.plot(self.update_loss_1)
         pyplot.plot(self.update_loss_2)
 
+
+
     
 
     def evaluation(self):
         observation_n = np.array(self.observation_n)
         last_action = np.zeros((6,5))
         self.agent_1.reset_hidden_states(1)
-        #self.agent_2.reset_hidden_states() -> for rnnagent
-        self.agent_2.reset_hidden_states(1)
+        if not self.ghost:
+            self.agent_2.reset_hidden_states(1)
 
         done = False
         rewards_1 =0
@@ -252,5 +264,19 @@ class Agents():
             print(' - Hitpoints:',self.env.team_stats[i,2])
             print(' - AliveTime:',self.env.team_stats[i,3])
             print(' - CumulativeHitpoints:',self.env.team_stats[i,4])
+
+
+class Ghost():
+
+    def __init__(self):
+        self.epsilon=0
+
+    def act(self,input_rnn,exploit):
+        return [0,0,0]
+    def update(self,buffer,episode_limit):
+        return 0
+    def load(self):
+        pass
+
 
 

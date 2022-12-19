@@ -49,9 +49,6 @@ class Agent_ROMA():
         self.qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim).to(self.device)
         self.target_qmix = Qmix_Net((self.n_agents,self.state_shape), self.n_agents, self.Qmix_hidden_dim).to(self.device)
 
-        # save/load models stuff
-        if not(vs == 'RVsR' or vs == 'RVsQ' or vs=='QvsQ'):
-            raise Exception('Models not valid!')
             
         where = 'models_'+vs
         self.models=[
@@ -65,7 +62,7 @@ class Agent_ROMA():
         self.update_freq=5
         self.gamma=0.99
         self.learning_rate=0.00025
-        self.epsilon=0.70
+        self.epsilon=0.65
         self.epsilon_decay=0.999
         self.epsilon_treshold=0.10
    
